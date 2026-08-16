@@ -203,6 +203,12 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 .big-btn:active:not(:disabled){transform:translateY(1px)}
 .nav{display:flex;justify-content:space-between;gap:6px;padding:9px;background:#eef0f2;border:1px solid var(--line);border-top:0}
 .nav .b{flex:1 1 auto;font-size:12px;padding:9px 6px}
+/* На узком экране три кнопки в строку не помещаются: nowrap из .b задаёт
+   min-content по всей строке, кнопки не сжимаются и «Вперёд →» уезжает за край.
+   Разрешаем переносить текст — это касается и desktop-режима на телефоне. */
+@media (max-width:719px){
+  .nav .b{min-width:0;white-space:normal;line-height:1.2}
+}
 
 /* ---------- свёрнутые подробности (только phone-режим) ---------- */
 .card-more{border-top:1px solid var(--hair);background:#f7f8f9}
@@ -271,11 +277,15 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
    ========================================================================== */
 
 /* закреплённая зона: шапка, таймер, ввод и решение всегда на месте.
-   Прокручивается только карточка под ней */
+   Прокручивается только карточка под ней.
+   Верхний отступ страницы обнулён, а safe-area перенесён внутрь закреплённого
+   блока: иначе до прокрутки шапка стоит на 18 пк ниже, чем после, и в момент
+   прилипания весь экран дёргается вверх. */
+body.phone .app{padding-top:0}
 body.phone .work-top{
   position:sticky;top:0;z-index:20;
   background:var(--board);
-  margin:0 -14px;padding:0 14px;
+  margin:0 -14px;padding:env(safe-area-inset-top) 14px 0;
 }
 body.phone .work-top::after{
   content:"";display:block;height:10px;
@@ -290,8 +300,10 @@ body.phone .panel-t{padding:4px 10px}
 body.phone .tbar{padding:7px 10px 0;gap:8px;flex-wrap:nowrap}
 body.phone .tbar .pill{font-size:9.5px;padding:2px 7px;flex:0 0 auto}
 body.phone .tmr{font-size:20px;flex:0 0 auto}
-body.phone .tbar-btns{gap:5px;flex-wrap:nowrap}
-body.phone .tbar-btns .b{font-size:12px;padding:6px 9px;min-height:36px}
+body.phone .tbar-btns{gap:5px;flex-wrap:nowrap;min-width:0}
+/* «Пауза» и «Продолжить» на телефоне остаются значками (подписи ставит
+   renderTimer), «Завершить» — со словом: это необратимое действие */
+body.phone .tbar-btns .b{font-size:12px;padding:6px 8px;min-height:36px;min-width:38px}
 body.phone .tline{padding:3px 10px 0;font-size:10.5px}
 body.phone .pgrow{display:flex;align-items:center;gap:10px;padding:0 10px 8px;margin-top:7px}
 body.phone .pgrow .bar{flex:1 1 auto;margin:0}
@@ -303,13 +315,16 @@ body.phone .finder>.dl{display:none}
 body.phone #find-hint{display:none}
 body.phone .inp.big{font-size:26px;padding:6px 10px}
 
-/* кнопка решения и навигация, переехавшие в закреплённую зону */
+/* Кнопка решения и навигация, переехавшие в закреплённую зону.
+   Обе кнопки и строка подсказки имеют фиксированную высоту: «УТИЛИЗИРОВАН»
+   и «Снять отметку» + «Решение принято» обязаны занимать одинаковое место,
+   иначе при отметке вся закреплённая зона меняет высоту и карточка подпрыгивает. */
 body.phone #work-actions{padding-bottom:2px}
-body.phone #work-actions .big-btn{margin-bottom:6px}
-body.phone #work-actions #util-hint{margin:0 0 6px}
-body.phone #work-actions #util-hint:empty{display:none}
+body.phone #work-actions .big-btn{min-height:60px;padding:16px 12px;margin-bottom:6px}
+body.phone #work-actions .big-undo{font-size:15px}
+body.phone #work-actions #util-hint{margin:0 0 6px;min-height:16px;line-height:16px}
 body.phone #work-actions .nav{border-top:1px solid var(--line);border-radius:3px;padding:7px}
-body.phone #work-actions .nav .b{padding:8px 6px;min-height:38px}
+body.phone #work-actions .nav .b{padding:8px 4px;min-height:38px}
 
 /* карточка: одна колонка в любом окне, короткий номер и позиция скрыты */
 body.phone .card-grid{grid-template-columns:1fr}

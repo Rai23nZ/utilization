@@ -423,6 +423,9 @@ function applyMode(mode) {
     b.classList.toggle('on', b.dataset.mode === UI.mode);
   });
 
+  // полная подпись не помещается в строку навигации на телефоне
+  $('btn-next-todo').textContent = isPhone() ? 'К неотмеченной' : 'К первой неутилизированной';
+
   var actions = $('work-actions'), cardR = document.querySelector('.card-r');
   if (isPhone()) {
     [$('btn-util'), $('btn-unutil'), $('util-hint'), $('card-nav')].forEach(function (el) {
@@ -436,7 +439,8 @@ function applyMode(mode) {
     $('card-wrap').appendChild($('card-nav'));
   }
 
-  if (S && $('screen-work').classList.contains('on')) renderCard();
+  // перерисовываем целиком: от режима зависят и подписи кнопок таймера
+  if (S && $('screen-work').classList.contains('on')) renderWork();
 }
 
 /* ------------------------------------------------------------------ таймер */
@@ -641,6 +645,11 @@ function renderTimer() {
   $('btn-tm-pause').hidden = t.state !== 'run';
   $('btn-tm-resume').hidden = t.state !== 'pause';
   $('btn-tm-finish').hidden = (t.state === 'idle' || t.state === 'done');
+
+  // на телефоне строка таймера не должна переноситься, иначе закреплённая зона
+  // вырастет: «Пауза» и «Продолжить» ужимаются до значков, «Завершить» — нет
+  $('btn-tm-pause').textContent = isPhone() ? '▐▐' : '▐▐ Пауза';
+  $('btn-tm-resume').textContent = isPhone() ? '▶' : '▶ Продолжить';
 }
 
 function renderProgress() {
