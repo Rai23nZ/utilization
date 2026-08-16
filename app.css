@@ -90,6 +90,17 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 .kpi b{font-family:var(--mono);font-size:20px;font-weight:700;display:block;line-height:1.25}
 .kpi.acc b{color:var(--pin)}
 .kpi.bad b{color:#b02a37}
+
+/* ---------- переключатель вида на экране загрузки ---------- */
+.mode{display:flex;border:1px solid var(--line);width:fit-content;max-width:100%;border-radius:3px;overflow:hidden}
+.mode button{
+  font:inherit;font-size:14px;font-weight:600;color:var(--ink2);
+  background:#fff;border:0;border-right:1px solid var(--line);
+  padding:10px 20px;min-height:44px;cursor:pointer;
+  -webkit-user-select:none;user-select:none;
+}
+.mode button:last-child{border-right:0}
+.mode button.on{background:var(--ink);color:#fff}
 /* на экране итога подписи длиннее — даём им больше места, чтобы не рвались посередине */
 #done-kpis{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 
@@ -127,8 +138,16 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 
 /* ---------- панель процесса ---------- */
 .panel{background:var(--panel);border:1px solid var(--line);margin-bottom:12px;border-radius:3px;overflow:hidden}
-.panel-t{background:linear-gradient(#4a6fa5,#3d5c8a);color:#fff;font-size:13px;padding:7px 11px;display:flex;justify-content:space-between;gap:10px}
-.panel-t em{font-style:normal;font-family:var(--mono);opacity:.85;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-t{background:linear-gradient(#4a6fa5,#3d5c8a);color:#fff;font-size:13px;padding:7px 11px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-t b{flex:0 0 auto}
+.panel-t em{font-style:normal;font-family:var(--mono);opacity:.85;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;min-width:0;text-align:right}
+.mode-btn{
+  flex:0 0 auto;font:inherit;font-size:11px;font-weight:600;color:#fff;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);
+  border-radius:3px;padding:3px 9px;cursor:pointer;white-space:nowrap;
+  -webkit-user-select:none;user-select:none;
+}
+.mode-btn:active{background:rgba(255,255,255,.3)}
 .tbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 11px 0}
 .tbar-btns{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .tmr{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1}
@@ -185,6 +204,19 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 .nav{display:flex;justify-content:space-between;gap:6px;padding:9px;background:#eef0f2;border:1px solid var(--line);border-top:0}
 .nav .b{flex:1 1 auto;font-size:12px;padding:9px 6px}
 
+/* ---------- свёрнутые подробности (только phone-режим) ---------- */
+.card-more{border-top:1px solid var(--hair);background:#f7f8f9}
+.card-more summary{
+  list-style:none;cursor:pointer;padding:13px 14px;min-height:44px;
+  font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);
+  display:flex;align-items:center;gap:8px;
+  -webkit-user-select:none;user-select:none;
+}
+.card-more summary::-webkit-details-marker{display:none}
+.card-more summary::before{content:"▸";font-size:13px;color:var(--pin)}
+.card-more[open] summary::before{content:"▾"}
+.card-more .attr{margin-top:0;padding:0 14px 12px}
+
 .stamp{
   position:absolute;z-index:3;left:50%;top:42%;
   transform:translate(-50%,-50%) rotate(-24deg);
@@ -230,3 +262,60 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important}
 }
+
+/* ==========================================================================
+   PHONE-РЕЖИМ. Включается классом body.phone (applyMode в app.js).
+   Идёт последним, чтобы перебивать правила @media (min-width:720px):
+   режим выбирается вручную и не обязан совпадать с шириной окна.
+   Десктопная раскладка выше не трогается — она считается замороженной.
+   ========================================================================== */
+
+/* закреплённая зона: шапка, таймер, ввод и решение всегда на месте.
+   Прокручивается только карточка под ней */
+body.phone .work-top{
+  position:sticky;top:0;z-index:20;
+  background:var(--board);
+  margin:0 -14px;padding:0 14px;
+}
+body.phone .work-top::after{
+  content:"";display:block;height:10px;
+  background:linear-gradient(rgba(25,29,33,.13),rgba(25,29,33,0));
+  margin:0 -14px;
+}
+
+/* компактная панель таймера: статус, время и кнопки обязаны уместиться
+   в одну строку — иначе закреплённая зона не влезает над клавиатурой */
+body.phone .panel{margin-bottom:8px}
+body.phone .panel-t{padding:4px 10px}
+body.phone .tbar{padding:7px 10px 0;gap:8px;flex-wrap:nowrap}
+body.phone .tbar .pill{font-size:9.5px;padding:2px 7px;flex:0 0 auto}
+body.phone .tmr{font-size:20px;flex:0 0 auto}
+body.phone .tbar-btns{gap:5px;flex-wrap:nowrap}
+body.phone .tbar-btns .b{font-size:12px;padding:6px 9px;min-height:36px}
+body.phone .tline{padding:3px 10px 0;font-size:10.5px}
+body.phone .pgrow{display:flex;align-items:center;gap:10px;padding:0 10px 8px;margin-top:7px}
+body.phone .pgrow .bar{flex:1 1 auto;margin:0}
+body.phone .pgrow .pgline{padding:0;white-space:nowrap;font-size:12px}
+
+/* поле ввода: подпись и подсказка не нужны, всё понятно по плейсхолдеру */
+body.phone .finder{padding:8px;margin-bottom:8px}
+body.phone .finder>.dl{display:none}
+body.phone #find-hint{display:none}
+body.phone .inp.big{font-size:26px;padding:6px 10px}
+
+/* кнопка решения и навигация, переехавшие в закреплённую зону */
+body.phone #work-actions{padding-bottom:2px}
+body.phone #work-actions .big-btn{margin-bottom:6px}
+body.phone #work-actions #util-hint{margin:0 0 6px}
+body.phone #work-actions #util-hint:empty{display:none}
+body.phone #work-actions .nav{border-top:1px solid var(--line);border-radius:3px;padding:7px}
+body.phone #work-actions .nav .b{padding:8px 6px;min-height:38px}
+
+/* карточка: одна колонка в любом окне, короткий номер и позиция скрыты */
+body.phone .card-grid{grid-template-columns:1fr}
+body.phone .card-l{border-bottom:1px solid #d5d9de;border-right:0;padding:12px 14px}
+body.phone .card-r{padding:14px}
+body.phone .knt-sub:empty{display:none}
+body.phone .card-l .attr:first-of-type{margin-top:10px}
+body.phone .card-r .chips{margin-bottom:0}
+body.phone .nav .b{flex:1 1 auto;font-size:12px;padding:9px 6px}

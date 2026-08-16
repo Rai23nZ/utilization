@@ -184,6 +184,13 @@ var ALIAS_KNT_SHORT = ['кнт'];
 var ALIAS_DECISION = ['решение', 'решение комиссии'];
 var ALIAS_NAME = ['наименование товара', 'наименование', 'товар'];
 
+/* Столбцы карточки. На десктопе ATTRS_TOP и ATTRS_REST идут одним списком,
+   на телефоне TOP остаётся на виду, а REST прячется в «Подробнее о товаре». */
+var ATTRS_TOP = ['цена по каталогу кис', 'цена кис', 'торговая марка'];
+var ATTRS_REST = ['правило дефектации', 'подгруппа товаров', 'подгруппа', 'код товара',
+                  'дефектов кол-во', 'кол-во вложений', 'киз', 'списание согласовано дпп'];
+var CHIPS = ['описание на этикетке', 'место обнаружения нт', 'состояние нт'];
+
 function isCsvName(name) { return /\.(csv|txt)$/i.test(name || ''); }
 
 /** Читает файл в матрицу строк. Понимает xlsx/xlsm/xls и csv (в т.ч. windows-1251). */
@@ -374,6 +381,64 @@ function dropStorage() {
   try { localStorage.removeItem(STORE_KEY); } catch (e) { /* нечего делать */ }
 }
 
+/* ------------------------------------------------------------- режим вида */
+/* Два вида рабочего экрана. desktop — исходная раскладка, менять её нельзя.
+   phone — компактная: решение и навигация переезжают в закреплённую зону
+   над карточкой, часть реквизитов прячется под «Подробнее о товаре».
+   Настройка живёт отдельно от сессии, чтобы переживать «Начать заново». */
+
+var UI_KEY = 'utilization-knt/ui';
+var UI = { mode: 'desktop', moreOpen: false };
+
+function isPhone() { return UI.mode === 'phone'; }
+
+function loadUI() {
+  var saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(UI_KEY) || 'null');
+  } catch (e) { saved = null; }
+
+  if (saved && (saved.mode === 'phone' || saved.mode === 'desktop')) {
+    UI.mode = saved.mode;
+    UI.moreOpen = !!saved.moreOpen;
+    return;
+  }
+  // первый запуск — угадываем по ширине окна
+  UI.mode = window.matchMedia('(max-width: 760px)').matches ? 'phone' : 'desktop';
+}
+
+function saveUI() {
+  try { localStorage.setItem(UI_KEY, JSON.stringify(UI)); } catch (e) { /* не критично */ }
+}
+
+/** Переносит кнопку решения и навигацию между карточкой и закреплённой зоной.
+    Обработчики переживают перенос, вешать их заново не нужно. */
+function applyMode(mode) {
+  UI.mode = mode === 'phone' ? 'phone' : 'desktop';
+  saveUI();
+
+  document.body.classList.toggle('phone', isPhone());
+  $('btn-mode').textContent = isPhone() ? 'Полный вид' : 'Компактно';
+  $('mode-switch').querySelectorAll('button').forEach(function (b) {
+    b.classList.toggle('on', b.dataset.mode === UI.mode);
+  });
+
+  var actions = $('work-actions'), cardR = document.querySelector('.card-r');
+  if (isPhone()) {
+    [$('btn-util'), $('btn-unutil'), $('util-hint'), $('card-nav')].forEach(function (el) {
+      actions.appendChild(el);
+    });
+  } else {
+    // порядок важен: имя, чипы, кнопки, подсказка — потом навигация под карточкой
+    [$('btn-util'), $('btn-unutil'), $('util-hint')].forEach(function (el) {
+      cardR.appendChild(el);
+    });
+    $('card-wrap').appendChild($('card-nav'));
+  }
+
+  if (S && $('screen-work').classList.contains('on')) renderCard();
+}
+
 /* ------------------------------------------------------------------ таймер */
 
 function tState() { return S.timer.state; }
@@ -537,9 +602,19 @@ function startTick() {
   }, 1000);
 }
 
+/** На телефоне фокус не трогаем: клавиатура открывается только по тапу по полю
+    и закрывается, как только карточка найдена. Иначе она перекрывает пол-экрана
+    и браузер начинает сам прокручивать страницу к полю ввода. */
 function focusInput() {
+  if (isPhone()) return;
   var el = $('knt-input');
-  if (el && !el.disabled) setTimeout(function () { el.focus(); }, 30);
+  if (el && !el.disabled) setTimeout(function () { el.focus({ preventScroll: true }); }, 30);
+}
+
+function blurInput() {
+  if (!isPhone()) return;
+  var el = $('knt-input');
+  if (el && document.activeElement === el) el.blur();
 }
 
 /* ------------------------------------------------------------- отрисовка */
@@ -587,7 +662,11 @@ function renderLog() {
 
 function renderCard() {
   var wrap = $('card-wrap');
-  if (S.cursor < 0 || !S.items[S.cursor]) { wrap.hidden = true; return; }
+  var hasItem = !(S.cursor < 0 || !S.items[S.cursor]);
+  // в phone-режиме кнопка и навигация живут вне карточки — прячем их отдельно,
+  // иначе они висели бы на экране, когда позиция ещё не выбрана
+  $('work-actions').hidden = !hasItem;
+  if (!hasItem) { wrap.hidden = true; return; }
   var it = S.items[S.cursor];
   var marked = !!S.marks[it.knt];
 
@@ -596,37 +675,71 @@ function renderCard() {
   $('card-stamp').hidden = !marked;
 
   $('c-knt').textContent = it.knt;
-  var sub = ['короткий: ' + (it.short || '—'), 'позиция ' + (S.cursor + 1) + ' из ' + S.items.length];
-  if (marked) sub.push('отмечен ' + clockOf(S.marks[it.knt]));
+  var sub;
+  if (isPhone()) {
+    // короткий номер и позиция на телефоне не нужны, время отметки — нужно
+    sub = marked ? ['отмечен ' + clockOf(S.marks[it.knt])] : [];
+  } else {
+    sub = ['короткий: ' + (it.short || '—'), 'позиция ' + (S.cursor + 1) + ' из ' + S.items.length];
+    if (marked) sub.push('отмечен ' + clockOf(S.marks[it.knt]));
+  }
   $('c-knt-sub').textContent = sub.join(' · ');
   $('c-name').textContent = it.name || '(наименование не заполнено)';
 
-  // атрибуты и чипы собираются из исходных столбцов файла
-  var ATTRS = ['правило дефектации', 'подгруппа товаров', 'подгруппа', 'торговая марка',
-               'код товара', 'цена по каталогу кис', 'цена кис', 'дефектов кол-во',
-               'кол-во вложений', 'киз', 'списание согласовано дпп'];
-  var CHIPS = ['описание на этикетке', 'место обнаружения нт', 'состояние нт'];
-  var attrHtml = '', chipHtml = '';
+  // атрибуты и чипы собираются из исходных столбцов файла, в порядке столбцов
+  var chipHtml = '';
+  var attrsOf = function (group) {
+    var html = '';
+    S.headers.forEach(function (h, i) {
+      var n = normHeader(h), v = it.cells[i];
+      if (!v || group.indexOf(n) < 0) return;
+      html += '<div><span>' + esc(h) + '</span><span>' + esc(v) + '</span></div>';
+    });
+    return html;
+  };
   S.headers.forEach(function (h, i) {
-    var n = normHeader(h), v = it.cells[i];
-    if (!v) return;
-    if (ATTRS.indexOf(n) >= 0) {
-      attrHtml += '<div><span>' + esc(h) + '</span><span>' + esc(v) + '</span></div>';
-    } else if (CHIPS.indexOf(n) >= 0) {
+    var v = it.cells[i];
+    if (v && CHIPS.indexOf(normHeader(h)) >= 0) {
       chipHtml += '<span class="chip">' + esc(h) + ': ' + esc(v) + '</span>';
     }
   });
-  $('c-attr').innerHTML = attrHtml;
   $('c-chips').innerHTML = chipHtml;
+
+  if (isPhone()) {
+    $('c-attr-top').innerHTML = attrsOf(ATTRS_TOP);
+    $('c-attr-rest').innerHTML = attrsOf(ATTRS_REST);
+    $('c-attr').innerHTML = '';
+    $('c-attr').hidden = true;
+    $('c-attr-top').hidden = false;
+    $('c-more').hidden = false;
+    $('c-more').open = UI.moreOpen;
+  } else {
+    $('c-attr').innerHTML = attrsOf(ATTRS_TOP.concat(ATTRS_REST));
+    $('c-attr').hidden = false;
+    $('c-attr-top').hidden = true;
+    $('c-more').hidden = true;
+  }
 
   var running = tState() === 'run';
   $('btn-util').hidden = marked;
   $('btn-unutil').hidden = !marked;
   $('btn-util').disabled = !running;
-  $('util-hint').textContent = marked
-    ? 'Решение по этой позиции уже принято. Снять отметку можно только через подтверждение.'
-    : (running ? '' : (tState() === 'idle' ? 'Сначала нажмите «Начать» — без запущенного таймера отметка недоступна.'
-                                           : 'Утилизация на паузе — продолжите процесс, чтобы отмечать товар.'));
+  $('util-hint').textContent = hintText(marked, running);
+}
+
+/** На телефоне подсказка под кнопкой должна занимать одну строку. */
+function hintText(marked, running) {
+  if (marked) {
+    return isPhone() ? 'Решение принято'
+      : 'Решение по этой позиции уже принято. Снять отметку можно только через подтверждение.';
+  }
+  if (running) return '';
+  if (tState() === 'idle') {
+    return isPhone() ? 'Нажмите «Начать»'
+      : 'Сначала нажмите «Начать» — без запущенного таймера отметка недоступна.';
+  }
+  return isPhone() ? 'Продолжите процесс'
+    : 'Утилизация на паузе — продолжите процесс, чтобы отмечать товар.';
 }
 
 function renderWork() {
@@ -685,6 +798,7 @@ function doFind(auto) {
       '<span>' + esc(it.name) + '</span></button>';
   }).join('');
   $('picker').hidden = false;
+  blurInput();   // из списка надо выбрать пальцем — клавиатура только мешает
 }
 
 function openItem(idx) {
@@ -694,7 +808,10 @@ function openItem(idx) {
   findMsg('');
   save();
   renderCard();
-  $('card-wrap').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // на телефоне карточка и так сразу под закреплённой зоной: прокрутка здесь
+  // только дёргала бы экран, ещё и наперегонки с закрывающейся клавиатурой
+  if (isPhone()) blurInput();
+  else $('card-wrap').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 /* -------------------------------------------------------------- отметки */
@@ -961,6 +1078,22 @@ function bind() {
   });
   $('btn-resume-drop').addEventListener('click', restart);
 
+  // переключение вида: сегмент на экране загрузки и кнопка в шапке рабочего экрана
+  $('mode-switch').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-mode]');
+    if (btn) applyMode(btn.dataset.mode);
+  });
+  $('btn-mode').addEventListener('click', function () {
+    applyMode(isPhone() ? 'desktop' : 'phone');
+    snack(isPhone() ? 'Компактный вид для телефона' : 'Полный вид', 'ok');
+  });
+
+  // «Подробнее о товаре» запоминает состояние между позициями
+  $('c-more').addEventListener('toggle', function () {
+    UI.moreOpen = $('c-more').open;
+    saveUI();
+  });
+
   // вкладка вернулась из фона — время считается от Date.now(), просто перерисуем
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && S && $('screen-work').classList.contains('on')) renderWork();
@@ -979,6 +1112,8 @@ function init() {
       'Файл vendor/xlsx.full.min.js отсутствует — положите его в репозиторий.</div>';
   }
   bind();
+  loadUI();
+  applyMode(UI.mode);
 
   var saved = load();
   if (saved) {

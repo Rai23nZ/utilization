@@ -2,7 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- interactive-widget=resizes-content: при открытии клавиатуры браузер ужимает layout-вьюпорт,
+     а не прокручивает страницу — закреплённая зона остаётся над клавиатурой, экран не прыгает -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#191d21">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -70,6 +72,16 @@
       <div id="match-notes"></div>
     </div>
 
+    <div class="fgroup">
+      <div class="dl">Вид рабочего экрана</div>
+      <div class="mode" id="mode-switch">
+        <button type="button" data-mode="phone">Телефон</button>
+        <button type="button" data-mode="desktop">Ноутбук</button>
+      </div>
+      <div class="hint">Телефон — компактный вид: кнопка «Утилизирован» закреплена вверху
+        под полем ввода. Вид можно сменить и во время работы.</div>
+    </div>
+
     <button class="b pri xl" id="btn-start" disabled>Начать утилизацию</button>
   </section>
 
@@ -98,10 +110,14 @@
   <!-- ==================== ЭКРАН 3 · УТИЛИЗАЦИЯ ==================== -->
   <section class="screen" id="screen-work">
 
+    <!-- .work-top на телефоне становится закреплённой зоной; на десктопе это обычный блок -->
+    <div class="work-top" id="work-top">
+
     <div class="panel">
       <div class="panel-t">
         <b>Утилизация</b>
         <em id="panel-src"></em>
+        <button type="button" class="mode-btn" id="btn-mode">Компактно</button>
       </div>
 
       <div class="tbar">
@@ -116,8 +132,10 @@
       </div>
       <div class="tline" id="tm-line"></div>
 
-      <div class="bar util"><i id="pg-bar" style="width:0%"></i></div>
-      <div class="pgline" id="pg-line">0 / 0 · осталось 0</div>
+      <div class="pgrow">
+        <div class="bar util"><i id="pg-bar" style="width:0%"></i></div>
+        <div class="pgline" id="pg-line">0 / 0 · осталось 0</div>
+      </div>
     </div>
 
     <div class="finder">
@@ -132,6 +150,11 @@
       <div class="picker" id="picker" hidden></div>
     </div>
 
+    <!-- в phone-режиме сюда переезжают кнопка решения и навигация (applyMode в app.js) -->
+    <div id="work-actions"></div>
+
+    </div><!-- /.work-top -->
+
     <div class="card-wrap" id="card-wrap" hidden>
       <div class="stamp" id="card-stamp" hidden>УТИЛИЗИРОВАН</div>
       <div class="card-grid">
@@ -139,6 +162,7 @@
           <div class="dl">№ КНТ</div>
           <div class="knt-big" id="c-knt">—</div>
           <div class="knt-sub" id="c-knt-sub"></div>
+          <div class="attr" id="c-attr-top" hidden></div>
           <div class="attr" id="c-attr"></div>
         </div>
         <div class="card-r">
@@ -148,8 +172,12 @@
           <button class="big-btn big-undo" id="btn-unutil" hidden>Снять отметку</button>
           <div class="hint" id="util-hint"></div>
         </div>
+        <details class="card-more" id="c-more" hidden>
+          <summary>Подробнее о товаре</summary>
+          <div class="attr" id="c-attr-rest"></div>
+        </details>
       </div>
-      <div class="nav">
+      <div class="nav" id="card-nav">
         <button class="b" id="btn-prev">← Назад</button>
         <button class="b gh" id="btn-next-todo">К первой неутилизированной</button>
         <button class="b" id="btn-next">Вперёд →</button>
