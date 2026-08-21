@@ -189,6 +189,14 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 .attr div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted var(--hair);font-size:12.5px}
 .attr span:first-child{color:var(--ink3);flex:0 0 auto}
 .attr span:last-child{text-align:right;font-weight:600;word-break:break-word}
+/* код товара и торговая марка — то, что оператор сверяет с самим товаром,
+   поэтому значения вынесены из общего ряда цветом и кеглем */
+.attr div.hi span:first-child{color:var(--pin);opacity:.85}
+.attr div.hi span:last-child{
+  background:var(--pin-soft);border:1px solid #e6d0a4;color:var(--pin);
+  font-size:15px;font-weight:700;line-height:1.25;
+  padding:3px 9px;border-radius:3px;margin:1px 0;
+}
 .prod-name{font-size:18px;font-weight:600;line-height:1.32;margin:0 0 8px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
 .chip{font-size:11.5px;background:#eef1f4;border:1px solid var(--hair);padding:4px 10px;border-radius:11px;color:var(--ink2)}

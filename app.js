@@ -190,6 +190,8 @@ var ATTRS_TOP = ['цена по каталогу кис', 'цена кис', 'т
 var ATTRS_REST = ['правило дефектации', 'подгруппа товаров', 'подгруппа', 'код товара',
                   'дефектов кол-во', 'кол-во вложений', 'киз', 'списание согласовано дпп'];
 var CHIPS = ['описание на этикетке', 'место обнаружения нт', 'состояние нт'];
+/* Эти два значения оператор ищет глазами чаще остальных — подсвечиваем их */
+var ATTRS_HI = ['код товара', 'торговая марка'];
 
 function isCsvName(name) { return /\.(csv|txt)$/i.test(name || ''); }
 
@@ -702,7 +704,8 @@ function renderCard() {
     S.headers.forEach(function (h, i) {
       var n = normHeader(h), v = it.cells[i];
       if (!v || group.indexOf(n) < 0) return;
-      html += '<div><span>' + esc(h) + '</span><span>' + esc(v) + '</span></div>';
+      var hi = ATTRS_HI.indexOf(n) >= 0 ? ' class="hi"' : '';
+      html += '<div' + hi + '><span>' + esc(h) + '</span><span>' + esc(v) + '</span></div>';
     });
     return html;
   };
@@ -944,8 +947,21 @@ function restText() {
 }
 
 function exportXlsx() {
+  var t = S.timer;
   var headers = S.headers.concat(['Утилизирован', 'Время отметки']);
-  var aoa = [headers];
+
+  // Итог процесса дублируется над таблицей: лист «Итог» открывают не всегда,
+  // а чистое время нужно видеть сразу вместе с отметками
+  var aoa = [
+    ['Утилизация КНТ', S.meta.actFile || ''],
+    ['Чистое время процесса', hhmmss(elapsedMs())],
+    ['Утилизировано', markedCount() + ' из ' + S.items.length],
+    ['Начало / окончание', (t.startedAt ? stampOf(t.startedAt) : '—') +
+                           ' — ' + (t.finishedAt ? stampOf(t.finishedAt) : '—')],
+    ['Пауз / время в паузе', t.pauses + ' · ' + hhmmss(pausedMsTotal())],
+    [],
+    headers
+  ];
   S.items.forEach(function (it) {
     var ts = S.marks[it.knt];
     aoa.push(it.cells.concat([ts ? '+' : '', ts ? stampOf(ts) : '']));
@@ -963,7 +979,7 @@ function exportXlsx() {
     ['Не отмечено', S.items.length - markedCount()],
     ['Начало', S.timer.startedAt ? stampOf(S.timer.startedAt) : ''],
     ['Окончание', S.timer.finishedAt ? stampOf(S.timer.finishedAt) : ''],
-    ['Чистое время', hhmmss(elapsedMs())],
+    ['Чистое время процесса', hhmmss(elapsedMs())],
     ['Пауз', S.timer.pauses],
     ['Время в паузе', hhmmss(pausedMsTotal())],
     []
