@@ -873,10 +873,21 @@ function step(delta) {
 function jumpToTodo() {
   var n = S.items.length;
   if (!n) return;
-  for (var k = 1; k <= n; k++) {
-    var i = ((S.cursor < 0 ? -1 : S.cursor) + k + n) % n;
-    if (!S.marks[S.items[i].knt]) { openItem(i); return; }
+  
+  // Если карточка ещё не открыта, начинаем поиск с -1, чтобы первыми проверить индекс 0
+  var startIdx = S.cursor < 0 ? -1 : S.cursor;
+  
+  for (var step = 1; step <= n; step++) {
+    var idx = (startIdx + step) % n;
+    var it = S.items[idx];
+    
+    // Товар считается неотмеченным, если его номер КНТ отсутствует в объекте S.marks
+    if (!S.marks[it.knt]) {
+      openItem(idx);
+      return;
+    }
   }
+  
   snack('Неутилизированных позиций не осталось', 'ok');
 }
 
