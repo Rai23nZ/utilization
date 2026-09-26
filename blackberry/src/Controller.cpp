@@ -31,6 +31,10 @@ static const double NAME_PX = 1300 * 0.97;
 static const double NAME_FONT = 8.5 * PX_PER_PT;
 static const double FILE_PX = 600 * 0.97;
 static const double FILE_FONT = 5.5 * PX_PER_PT;
+/* «Подробно»: значения Plex Sans 7 пт, подписи Plex Mono 5 пт, ширина 1356 пк; строк — сколько нужно */
+static const double DETAIL_PX = 1356 * 0.97;
+static const double DETAIL_FONT = 7 * PX_PER_PT;
+static const double DETAIL_KEY_FONT = 5 * PX_PER_PT;
 
 /* JsonDataAccess на устройстве надёжно пишет только QVariantList/QVariantMap/скаляры */
 static QVariantList listOf(const QStringList &l)
@@ -946,7 +950,8 @@ QVariantList Controller::details() const
     const Item &it = m_items.at(m_cursor);
     for (int i = 0; i < m_headers.size() && i < it.cells.size(); ++i) {
         if (it.cells.at(i).isEmpty() || m_headers.at(i).isEmpty()) continue;
-        out << kv(m_headers.at(i), it.cells.at(i));
+        out << kv(wrapLines(m_headers.at(i), DETAIL_PX, DETAIL_KEY_FONT, true, 3),
+                  wrapLines(it.cells.at(i), DETAIL_PX, DETAIL_FONT, false, 60));
     }
     return out;
 }

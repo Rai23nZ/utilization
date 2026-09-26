@@ -657,7 +657,8 @@ Container {
                                     size: 5
                                 }
                                 Sans {
-                                    horizontalAlignment: HorizontalAlignment.Fill
+                                    preferredWidth: ui.du(113)
+                                    maxWidth: ui.du(113)
                                     text: ListItemData.v
                                     tint: "#e8e4d8"
                                     size: 7

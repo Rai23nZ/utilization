@@ -8,7 +8,7 @@ GitHub Pages, ставится на Android как обычное приложе
 
 Для BlackBerry 10 (Passport) есть нативная версия без Android Runtime: файлы с SD-карты,
 отчёт в папку `utilization`, поддержка старого `.xls`. Она лежит в каталоге [`blackberry/`](blackberry/),
-готовый пакет — `blackberry/dist/UtilizationKNT-1.0.1.bar`.
+готовый пакет — `blackberry/dist/UtilizationKNT-1.0.2.bar`.
 
 ## Как работает
 

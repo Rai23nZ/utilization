@@ -54,18 +54,22 @@ Container {
             }
         }
 
-        // подписи
+        // подписи. Отступы заданы явно: без них Cascades вставляет между надписями
+        // ~3 du, и блок с двухстрочным именем файла наезжал на крупную цифру.
         Container {
             horizontalAlignment: HorizontalAlignment.Fill
             verticalAlignment: VerticalAlignment.Bottom
             layout: StackLayout {
             }
             MonoB {
+                bottomMargin: 0
                 text: tile.kind == "check" ? "РЕЗУЛЬТАТ ПРОВЕРКИ" : "АКТ СПИСАНИЯ"
                 tint: tile.ok ? T.bg : T.ink
                 size: 7
             }
             Mono {
+                topMargin: ui.du(0.5)
+                bottomMargin: 0
                 preferredWidth: ui.du(50)
                 maxWidth: ui.du(50)
                 text: tile.st == "empty" ? "коснитесь — выбрать\nна SD-карте" : tile.info.fileLines
@@ -76,6 +80,8 @@ Container {
             }
             Mono {
                 visible: tile.st != "empty"
+                topMargin: ui.du(0.5)
+                bottomMargin: 0
                 text: tile.st == "busy" ? "ЧИТАЮ…" : tile.info.line
                 tint: tile.ok ? T.bg : (tile.st == "err" ? T.red : T.amber)
                 size: 5.5

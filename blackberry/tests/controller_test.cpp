@@ -150,6 +150,24 @@ int main(int argc, char **argv)
     printf("      карточка: %s · %s · теги %d · действие %s\n", s(card.value("knt")).toUtf8().constData(),
            s(card.value("name")).toUtf8().constData(), card.value("tags").toList().size(), s(card.value("action")).toUtf8().constData());
     CHECK(card.value("action") == "off", "без таймера отметка недоступна");
+    {
+        // «Подробно»: значения целиком — строки через \n, без многоточия
+        QVariantList det = c->details();
+        bool whole = !det.isEmpty();
+        for (int i = 0; i < det.size(); ++i) {
+            QString v = det.at(i).toMap().value("v").toString();
+            if (v.contains(QChar(0x2026))) whole = false;
+        }
+        CHECK(whole, "в «Подробно» значения без обрезки");
+        QString longValue = QString::fromUtf8("410094-01 5.5 Кроссовки женские утепленные CASSIA 2.0 L бежевый р. 5.5, "
+                                              "коллекция осень-зима, поставка по договору № 17/2026 от 01.09.2026");
+        QString w = Logic::wrapLines(longValue, 1356 * 0.97, 7 * 6.4, false, 60);
+        QStringList wl = w.split(QChar('\n'));
+        bool fits = true;
+        for (int i = 0; i < wl.size(); ++i) fits = fits && Logic::textWidth(wl.at(i), 7 * 6.4, false) <= 1356 * 0.97;
+        CHECK(wl.size() >= 2 && fits && !w.contains(QChar(0x2026)) && wl.join(QString(QChar(' '))) == longValue.simplified(),
+              "длинное значение в «Подробно» переносится полностью");
+    }
     c->mark();
     CHECK(c->doneCount() == 0 && toasts.last() == QString::fromUtf8("Таймер не запущен"), "отметка без таймера отклонена");
 
