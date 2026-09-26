@@ -6,8 +6,8 @@
 <qnx xmlns="http://www.qnx.com/schemas/application/1.0">
     <id>ru.utilization.knt</id>
     <name>Утилизация КНТ</name>
-    <versionNumber>1.0.0</versionNumber>
-    <buildId>1</buildId>
+    <versionNumber>1.0.1</versionNumber>
+    <buildId>2</buildId>
     <description>Утилизация некондиционного товара: файлы с SD-карты, отчёт в папку utilization.</description>
     <author>Utilization KNT</author>
 

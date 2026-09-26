@@ -63,6 +63,12 @@ QList<int> candidates(const QList<Item> &items, const QString &query);
 /* Индексы столбцов по нормализованным заголовкам. */
 int columnOf(const QStringList &headers, const QStringList &aliases);
 
+/* Перенос текста не больше чем на maxLines строк: по ширине символов шрифта
+   (mono — все символы 0.6 em, иначе — таблица IBM Plex Sans). Строки через «\n»,
+   не поместившийся хвост заканчивается «…». */
+QString wrapLines(const QString &text, double maxPx, double fontPx, bool mono, int maxLines);
+double textWidth(const QString &text, double fontPx, bool mono);
+
 QString plural(int n, const char *one, const char *few, const char *many);
 QString hhmmss(qint64 ms);
 QString clockOf(qint64 ts);

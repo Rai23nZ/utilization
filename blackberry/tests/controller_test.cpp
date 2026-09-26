@@ -1,6 +1,7 @@
 /* Хост-тест контроллера: полный сценарий утилизации без интерфейса.
    Запуск: controller_test FIXTURES_DIR  (UTIL_SD_ROOT и UTIL_DATA_DIR — временные каталоги) */
 #include "../src/Controller.hpp"
+#include "../src/Logic.hpp"
 #include "../src/Platform.hpp"
 
 #include <QCoreApplication>
@@ -41,6 +42,27 @@ int main(int argc, char **argv)
     QDir(sd).removeRecursively();
     QDir().mkpath(sd);
     QDir(Platform::dataDir()).removeRecursively();
+
+    // перенос наименования и имени файла (ширины — как на Passport)
+    {
+        const double namePx = 1300 * 0.97, nameFont = 8.5 * 6.4, filePx = 600 * 0.97, fileFont = 5.5 * 6.4;
+        QString shortName = QString::fromUtf8("Дрель ударная 750 Вт");
+        CHECK(Logic::wrapLines(shortName, namePx, nameFont, false, 2) == shortName, "короткое наименование — одна строка");
+        QString longName = QString::fromUtf8("114711-Y3 41  Кроссовки мужские Festland хаки, размер 41, сезон весна-лето, артикул поставщика");
+        QString w = Logic::wrapLines(longName, namePx, nameFont, false, 2);
+        QStringList wl = w.split(QChar('\n'));
+        printf("      %s\n", w.toUtf8().replace("\n", " ⏎ ").constData());
+        CHECK(wl.size() == 2, "длинное наименование — две строки");
+        CHECK(Logic::textWidth(wl.at(0), nameFont, false) <= namePx && Logic::textWidth(wl.at(1), nameFont, false) <= namePx,
+              "каждая строка укладывается в ширину табло");
+        CHECK(wl.at(1).endsWith(QChar(0x2026)), "не поместившийся хвост заканчивается многоточием");
+        QString file = QString::fromUtf8("Результат_проверки_КНТ_от_24.09.2026.xlsx");
+        QString fw = Logic::wrapLines(file, filePx, fileFont, true, 2);
+        QStringList fl = fw.split(QChar('\n'));
+        printf("      %s\n", fw.toUtf8().replace("\n", " ⏎ ").constData());
+        CHECK(fl.size() == 2 && fl.at(0).size() <= 27 && fl.at(1).size() <= 27, "имя файла — две строки по 27 знаков");
+        CHECK(fl.join(QString()) == file, "имя файла переносится без потерь");
+    }
 
     Spy spy;
     Controller *c = new Controller;
@@ -160,6 +182,9 @@ int main(int argc, char **argv)
     QString undoSt;
     for (int i = 0; i < grid.size(); ++i) if (grid.at(i).toMap().value("st") == "undo") undoSt = s(grid.at(i).toMap().value("sn"));
     CHECK(undoSt == "2037", "плитка со снятой отметкой помечена");
+    bool four = true;
+    for (int i = 0; i < grid.size(); ++i) four = four && grid.at(i).toMap().value("sn").toString().size() == 4;
+    CHECK(four, "на плитках по 4 последние цифры номера");
     int firstIdx = grid.at(0).toMap().value("idx").toInt();
     c->gridOpen(firstIdx);
     CHECK(c->sheetOpen() && c->card().value("idx").toInt() == firstIdx, "шторка открыта на выбранной позиции");

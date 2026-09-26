@@ -116,7 +116,7 @@ Container {
                     Container {
                         topMargin: ui.du(1.5)
                         horizontalAlignment: HorizontalAlignment.Fill
-                        preferredHeight: ui.du(10)
+                        preferredHeight: ui.du(13)
                         layout: StackLayout {
                             orientation: LayoutOrientation.LeftToRight
                         }

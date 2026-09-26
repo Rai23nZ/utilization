@@ -23,6 +23,15 @@ static QVariantMap kv(const QString &k, const QVariant &v, const QString &c = QS
 
 static QString upperWords(const QString &s) { return s.toUpper(); }
 
+/* Ширина строк в пикселях Passport (1 пт ≈ 6,4 пк — замерено на устройстве) с запасом 3 %.
+   Наименование: IBM Plex Sans 8,5 пт в табло шириной 1300 пк.
+   Имя файла: Plex Mono 5,5 пт на плитке шириной 600 пк. */
+static const double PX_PER_PT = 6.4;
+static const double NAME_PX = 1300 * 0.97;
+static const double NAME_FONT = 8.5 * PX_PER_PT;
+static const double FILE_PX = 600 * 0.97;
+static const double FILE_FONT = 5.5 * PX_PER_PT;
+
 /* JsonDataAccess на устройстве надёжно пишет только QVariantList/QVariantMap/скаляры */
 static QVariantList listOf(const QStringList &l)
 {
@@ -275,6 +284,7 @@ QVariantMap Controller::checkInfo() const
     QVariantMap m;
     m.insert(QS("state"), m_checkState);
     m.insert(QS("file"), m_checkName);
+    m.insert(QS("fileLines"), wrapLines(m_checkName, FILE_PX, FILE_FONT, true, 2));
     m.insert(QS("line"), m_checkLine);
     return m;
 }
@@ -284,6 +294,7 @@ QVariantMap Controller::actInfo() const
     QVariantMap m;
     m.insert(QS("state"), m_actState);
     m.insert(QS("file"), m_actName);
+    m.insert(QS("fileLines"), wrapLines(m_actName, FILE_PX, FILE_FONT, true, 2));
     m.insert(QS("line"), m_actLine);
     return m;
 }
@@ -857,6 +868,8 @@ QVariantMap Controller::card() const
     m.insert(QS("head"), it.knt.left(it.knt.size() - tail));
     m.insert(QS("tail"), it.knt.right(tail));
     m.insert(QS("name"), it.name.isEmpty() ? QS("(наименование не заполнено)") : it.name);
+    m.insert(QS("name2"), wrapLines(it.name.isEmpty() ? QS("(наименование не заполнено)") : it.name,
+                                    NAME_PX, NAME_FONT, false, 2));
     QVariantList tags;
     QString code = cellOf(it, m_colCode), brand = cellOf(it, m_colBrand), price = cellOf(it, m_colPrice);
     if (!code.isEmpty()) tags << kv(QS("КОД"), code, QS("hi"));
@@ -1054,7 +1067,7 @@ QVariantMap Controller::gridEntry(int idx) const
     const Item &it = m_items.at(idx);
     QVariantMap m;
     m.insert(QS("idx"), idx);
-    m.insert(QS("sn"), it.shortNo.isEmpty() ? it.knt.right(4) : it.shortNo);
+    m.insert(QS("sn"), it.knt.right(4));   // на плитке всегда 4 последние цифры полного номера
     m.insert(QS("name"), it.name);
     QString st = QS("left");
     if (m_marks.contains(it.knt)) {

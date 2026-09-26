@@ -216,8 +216,6 @@ Container {
                                     text: ListItemData.name
                                     tint: ListItemData.st == "done" ? "#dbe5ff" : "#9a978c"
                                     size: 5
-                                    multiline: true
-                                    autoSize.maxLineCount: 2
                                 }
                             }
                         }
@@ -298,8 +296,7 @@ Container {
                     preferredWidth: ui.du(20)
                     preferredHeight: ui.du(8)
                     kind: "fn"
-                    icon: "close"
-                    label: "ЗАКРЫТЬ"
+                    label: "× ЗАКРЫТЬ"
                     labelSize: 5.5
                     onClicked: app.sheetClose()
                 }
@@ -324,8 +321,6 @@ Container {
                 text: grid.c.has ? grid.c.name : ""
                 tint: T.ink
                 size: 8
-                multiline: true
-                autoSize.maxLineCount: 2
             }
             Container {
                 topMargin: ui.du(1)

@@ -202,13 +202,17 @@ Container {
                         layout: DockLayout {
                         }
 
-                        // карточка
+                        // карточка: номер прижат к верху, наименование и метки — к низу.
+                        // Длинное наименование уходит на вторую строку вверх, в пустое поле
+                        // под крупными цифрами, и не сдвигает остальные элементы табло.
                         Container {
                             visible: work.c.has == true
                             horizontalAlignment: HorizontalAlignment.Fill
-                            layout: StackLayout {
+                            verticalAlignment: VerticalAlignment.Fill
+                            layout: DockLayout {
                             }
                             Container {
+                                verticalAlignment: VerticalAlignment.Top
                                 layout: StackLayout {
                                     orientation: LayoutOrientation.LeftToRight
                                 }
@@ -223,35 +227,42 @@ Container {
                                     size: 26
                                 }
                             }
-                            Sans {
-                                horizontalAlignment: HorizontalAlignment.Fill
-                                text: work.c.has ? work.c.name : ""
-                                tint: T.ink
-                                size: 8.5
-                                multiline: true
-                                autoSize.maxLineCount: 2
-                            }
                             Container {
-                                topMargin: ui.du(1)
+                                horizontalAlignment: HorizontalAlignment.Fill
+                                verticalAlignment: VerticalAlignment.Bottom
                                 layout: StackLayout {
-                                    orientation: LayoutOrientation.LeftToRight
                                 }
-                                Tag {
-                                    visible: work.tags.length > 0
-                                    label: work.tags.length > 0 ? work.tags[0].k + " " + work.tags[0].v : ""
-                                    hi: work.tags.length > 0 && work.tags[0].c == "hi"
+                                Sans {
+                                    preferredWidth: ui.du(108.3)
+                                    maxWidth: ui.du(108.3)
+                                    text: work.c.has ? work.c.name2 : ""
+                                    tint: T.ink
+                                    size: 8.5
+                                    multiline: true
+                                    autoSize.maxLineCount: 2
                                 }
-                                Tag {
-                                    visible: work.tags.length > 1
-                                    leftMargin: ui.du(1.2)
-                                    label: work.tags.length > 1 ? work.tags[1].k + " " + work.tags[1].v : ""
-                                    hi: work.tags.length > 1 && work.tags[1].c == "hi"
-                                }
-                                Tag {
-                                    visible: work.tags.length > 2
-                                    leftMargin: ui.du(1.2)
-                                    label: work.tags.length > 2 ? work.tags[2].k + " " + work.tags[2].v : ""
-                                    hi: work.tags.length > 2 && work.tags[2].c == "hi"
+                                Container {
+                                    topMargin: ui.du(1)
+                                    layout: StackLayout {
+                                        orientation: LayoutOrientation.LeftToRight
+                                    }
+                                    Tag {
+                                        visible: work.tags.length > 0
+                                        label: work.tags.length > 0 ? work.tags[0].k + " " + work.tags[0].v : ""
+                                        hi: work.tags.length > 0 && work.tags[0].c == "hi"
+                                    }
+                                    Tag {
+                                        visible: work.tags.length > 1
+                                        leftMargin: ui.du(1.2)
+                                        label: work.tags.length > 1 ? work.tags[1].k + " " + work.tags[1].v : ""
+                                        hi: work.tags.length > 1 && work.tags[1].c == "hi"
+                                    }
+                                    Tag {
+                                        visible: work.tags.length > 2
+                                        leftMargin: ui.du(1.2)
+                                        label: work.tags.length > 2 ? work.tags[2].k + " " + work.tags[2].v : ""
+                                        hi: work.tags.length > 2 && work.tags[2].c == "hi"
+                                    }
                                 }
                             }
                         }
@@ -440,7 +451,7 @@ Container {
                         }
                         kind: "fn"
                         icon: "backspace"
-                        sub: "ДОЛГО — ОЧИСТИТЬ"
+                        sub: "ДОЛГО — СБРОС"
                         onClicked: app.backspace()
                         onLongClicked: app.clearInput()
                     }

@@ -2,6 +2,8 @@ import bb.cascades 1.4
 
 // Большая плитка файла на экране загрузки: пустая (янтарная рамка), читается,
 // загружена (залита янтарём) или с ошибкой (красная рамка). Касание — выбор на SD-карте.
+// Номер прижат к верху, подписи — к низу: вторая строка имени файла занимает пустое
+// поле под крупной цифрой и не меняет размер плитки.
 Container {
     id: tile
     property string kind: "check"
@@ -26,10 +28,13 @@ Container {
         rightPadding: ui.du(2.5)
         topPadding: ui.du(2)
         bottomPadding: ui.du(2)
-        layout: StackLayout {
+        layout: DockLayout {
         }
+
+        // номер и значок состояния
         Container {
             horizontalAlignment: HorizontalAlignment.Fill
+            verticalAlignment: VerticalAlignment.Top
             layout: StackLayout {
                 orientation: LayoutOrientation.LeftToRight
             }
@@ -48,29 +53,33 @@ Container {
                 preferredHeight: ui.du(5)
             }
         }
+
+        // подписи
         Container {
-            layoutProperties: StackLayoutProperties {
-                spaceQuota: 1
-            }
-        }
-        MonoB {
-            text: tile.kind == "check" ? "РЕЗУЛЬТАТ ПРОВЕРКИ" : "АКТ СПИСАНИЯ"
-            tint: tile.ok ? T.bg : T.ink
-            size: 7
-        }
-        Mono {
             horizontalAlignment: HorizontalAlignment.Fill
-            text: tile.st == "empty" ? "коснитесь — выбрать на SD-карте" : tile.info.file
-            tint: tile.ok ? T.bg : (tile.st == "err" ? T.red : T.ink2)
-            size: 5.5
-            multiline: true
-            autoSize.maxLineCount: 2
-        }
-        Mono {
-            visible: tile.st != "empty"
-            text: tile.st == "busy" ? "ЧИТАЮ…" : tile.info.line
-            tint: tile.ok ? T.bg : (tile.st == "err" ? T.red : T.amber)
-            size: 5.5
+            verticalAlignment: VerticalAlignment.Bottom
+            layout: StackLayout {
+            }
+            MonoB {
+                text: tile.kind == "check" ? "РЕЗУЛЬТАТ ПРОВЕРКИ" : "АКТ СПИСАНИЯ"
+                tint: tile.ok ? T.bg : T.ink
+                size: 7
+            }
+            Mono {
+                preferredWidth: ui.du(50)
+                maxWidth: ui.du(50)
+                text: tile.st == "empty" ? "коснитесь — выбрать\nна SD-карте" : tile.info.fileLines
+                tint: tile.ok ? T.bg : (tile.st == "err" ? T.red : T.ink2)
+                size: 5.5
+                multiline: true
+                autoSize.maxLineCount: 2
+            }
+            Mono {
+                visible: tile.st != "empty"
+                text: tile.st == "busy" ? "ЧИТАЮ…" : tile.info.line
+                tint: tile.ok ? T.bg : (tile.st == "err" ? T.red : T.amber)
+                size: 5.5
+            }
         }
     }
 

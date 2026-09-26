@@ -229,7 +229,7 @@ Container {
     // ---------- клавиши
     Container {
         horizontalAlignment: HorizontalAlignment.Fill
-        preferredHeight: ui.du(14)
+        preferredHeight: ui.du(16)
         leftPadding: ui.du(3.5)
         rightPadding: ui.du(3.5)
         topPadding: ui.du(1.5)

@@ -1,4 +1,5 @@
 #include "Logic.hpp"
+#include "SansMetrics.hpp"
 
 #include <QDateTime>
 #include <QSet>
@@ -225,6 +226,84 @@ QList<int> candidates(const QList<Item> &items, const QString &query)
         else if (it.knt.endsWith(d) || it.shortNo == d) out << i;
     }
     return out;
+}
+
+static double advance(ushort code, bool mono)
+{
+    if (mono) return 600;
+    int lo = 0, hi = SANS_COUNT - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        if (SANS_ADV[mid][0] == code) return SANS_ADV[mid][1];
+        if (SANS_ADV[mid][0] < code) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return SANS_FALLBACK;
+}
+
+double textWidth(const QString &text, double fontPx, bool mono)
+{
+    double w = 0;
+    for (int i = 0; i < text.size(); ++i) w += advance(text.at(i).unicode(), mono);
+    return w * fontPx / 1000.0;
+}
+
+/* После этих символов строку можно перенести */
+static bool breakAfter(QChar c)
+{
+    ushort u = c.unicode();
+    return u == ' ' || u == '_' || u == '-' || u == '.' || u == ',' || u == '/' || u == 0x2014;
+}
+
+QString wrapLines(const QString &text, double maxPx, double fontPx, bool mono, int maxLines)
+{
+    QString src = text.simplified();
+    if (src.isEmpty() || maxLines < 1 || textWidth(src, fontPx, mono) <= maxPx) return src;
+
+    // куски «слово + разделитель»
+    QStringList parts;
+    QString cur;
+    for (int i = 0; i < src.size(); ++i) {
+        cur.append(src.at(i));
+        if (breakAfter(src.at(i))) { parts << cur; cur.clear(); }
+    }
+    if (!cur.isEmpty()) parts << cur;
+
+    QStringList lines;
+    QString line;
+    int p = 0;
+    while (p < parts.size() && lines.size() < maxLines - 1) {
+        QString candidate = line + parts.at(p);
+        if (textWidth(candidate.trimmed(), fontPx, mono) <= maxPx) {
+            line = candidate;
+            ++p;
+            continue;
+        }
+        if (line.isEmpty()) {
+            // одно слово шире строки — режем по символам
+            QString word = parts.at(p);
+            int n = 0;
+            while (n < word.size() && textWidth(word.left(n + 1), fontPx, mono) <= maxPx) ++n;
+            if (n == 0) n = 1;
+            lines << word.left(n);
+            parts[p] = word.mid(n);
+            continue;
+        }
+        lines << line.trimmed();
+        line.clear();
+    }
+    QString rest = line;
+    for (; p < parts.size(); ++p) rest += parts.at(p);
+    rest = rest.trimmed();
+    if (textWidth(rest, fontPx, mono) > maxPx) {
+        const QString ell = QString(QChar(0x2026));
+        double room = maxPx - textWidth(ell, fontPx, mono);
+        int n = 0;
+        while (n < rest.size() && textWidth(rest.left(n + 1), fontPx, mono) <= room) ++n;
+        rest = rest.left(n).trimmed() + ell;
+    }
+    if (!rest.isEmpty()) lines << rest;
+    return lines.join(QS("\n"));
 }
 
 QString plural(int n, const char *one, const char *few, const char *many)

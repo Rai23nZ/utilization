@@ -187,7 +187,7 @@ Container {
         topPadding: ui.du(1.2)
         MonoB {
             horizontalAlignment: HorizontalAlignment.Fill
-            text: "✓ " + app.exportNote
+            text: (app.exportNote.indexOf("ОШИБКА") >= 0 || app.exportNote.indexOf("НЕТ SD") >= 0 ? "× " : "✓ ") + app.exportNote
             tint: app.exportNote.indexOf("ОШИБКА") >= 0 || app.exportNote.indexOf("НЕТ SD") >= 0 ? T.red : T.green
             size: 5.2
             multiline: true
@@ -197,7 +197,7 @@ Container {
     // ---------- клавиши
     Container {
         horizontalAlignment: HorizontalAlignment.Fill
-        preferredHeight: ui.du(15)
+        preferredHeight: ui.du(16)
         leftPadding: ui.du(3.5)
         rightPadding: ui.du(3.5)
         topPadding: ui.du(1.5)
@@ -210,7 +210,6 @@ Container {
                 spaceQuota: 2
             }
             kind: "primary"
-            icon: "arrow_up"
             label: "ВЫГРУЗИТЬ .XLSX"
             sub: "В SD-КАРТА / UTILIZATION"
             labelSize: 7.5
@@ -222,7 +221,6 @@ Container {
                 spaceQuota: 1
             }
             kind: "fn"
-            icon: "sheet"
             label: "ТЕКСТ .TXT"
             sub: "+ КОПИЯ В БУФЕР"
             onClicked: app.exportText()
@@ -233,8 +231,8 @@ Container {
                 spaceQuota: 1
             }
             kind: "fn"
-            icon: "close"
             label: "ЗАНОВО"
+            sub: "НОВАЯ ВЫБОРКА"
             onClicked: app.requestRestart()
         }
     }

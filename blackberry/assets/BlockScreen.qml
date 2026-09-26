@@ -139,7 +139,7 @@ Container {
 
     Container {
         horizontalAlignment: HorizontalAlignment.Fill
-        preferredHeight: ui.du(15)
+        preferredHeight: ui.du(16)
         leftPadding: ui.du(3.5)
         rightPadding: ui.du(3.5)
         topPadding: ui.du(1.5)
@@ -152,7 +152,6 @@ Container {
                 spaceQuota: 2
             }
             kind: "primary"
-            icon: "sheet"
             label: "КОПИРОВАТЬ СПИСОК"
             sub: "И СОХРАНИТЬ .TXT В UTILIZATION"
             labelSize: 7
