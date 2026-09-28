@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Утилизация КНТ для BlackBerry 10 (Cascades, нативное приложение без Android Runtime).
+    access_shared — чтение файлов с SD-карты и запись отчёта в папку utilization на ней.
+-->
+<qnx xmlns="http://www.qnx.com/schemas/application/1.0">
+    <id>ru.utilization.knt</id>
+    <name>Утилизация КНТ</name>
+    <versionNumber>1.0.2</versionNumber>
+    <buildId>3</buildId>
+    <description>Утилизация некондиционного товара: файлы с SD-карты, отчёт в папку utilization.</description>
+    <author>Utilization KNT</author>
+
+    <initialWindow>
+        <autoOrients>false</autoOrients>
+        <aspectRatio>portrait</aspectRatio>
+        <systemChrome>none</systemChrome>
+    </initialWindow>
+
+    <icon>
+        <image>icon_144.png</image>
+        <image>icon_110.png</image>
+        <image>icon_96.png</image>
+    </icon>
+
+    <asset path="icon_144.png">icon_144.png</asset>
+    <asset path="icon_110.png">icon_110.png</asset>
+    <asset path="icon_96.png">icon_96.png</asset>
+    <asset path="assets">assets</asset>
+    <asset path="build/arm/UtilizationKNT" entry="true" type="Qnx/Elf">UtilizationKNT</asset>
+
+    <env var="LD_LIBRARY_PATH" value="app/native/lib:/usr/lib/qt4/lib"/>
+    <env var="CASCADES_THEME" value="dark"/>
+
+    <permission>access_shared</permission>
+</qnx>
