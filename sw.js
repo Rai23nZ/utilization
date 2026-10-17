@@ -4,7 +4,7 @@
    index.html и app.js несовместимы поштучно: stale-while-revalidate обновляет
    файлы независимо, и без нового кэша можно получить новый скрипт со старой
    разметкой. Новый CACHE перекачивает весь шелл разом. */
-const CACHE = 'utilization-knt-v2';
+const CACHE = 'utilization-knt-v3';
 
 const SHELL = [
   './',

@@ -200,6 +200,28 @@ button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid va
 .prod-name{font-size:18px;font-weight:600;line-height:1.32;margin:0 0 8px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
 .chip{font-size:11.5px;background:#eef1f4;border:1px solid var(--hair);padding:4px 10px;border-radius:11px;color:var(--ink2)}
+
+/* однородный товар: тот же артикул в начале наименования, отмечается одной кнопкой */
+.grp{border:1px solid var(--hair);border-radius:3px;margin:0 0 14px;background:#fff;overflow:hidden}
+.grp-h{display:flex;align-items:center;gap:8px;padding:5px 5px 5px 10px;background:#f7f8f9;border-bottom:1px solid var(--hair)}
+.grp-h .dl{margin:0;flex:1 1 auto;min-width:0}
+.grp-h .cnt{white-space:nowrap}
+.grp-h .b{flex:0 0 auto;min-height:34px;padding:5px 10px;font-size:12px}
+.grp-row{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:44px;
+  padding:7px 10px;border:0;border-bottom:1px solid #f0f2f4;background:#fff;
+  font:inherit;font-size:12.5px;text-align:left;color:var(--ink);cursor:pointer;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.grp-row:last-child{border-bottom:0}
+.grp-row input{flex:0 0 auto;width:20px;height:20px;margin:0;accent-color:var(--excel)}
+.grp-row b{flex:0 0 auto;font-family:var(--mono)}
+.grp-row span{flex:1 1 auto;min-width:0;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grp-row em{flex:0 0 auto;font-style:normal;font-size:11px;color:var(--ink3)}
+.grp-row.on{background:#ecfbf3}
+.grp-row.done{cursor:default;background:#f4f5f6}
+.grp-row.done b,.grp-row.done span{color:var(--ink3)}
+button.grp-row em{color:var(--pin);font-weight:600}
 .big-btn{
   display:block;width:100%;text-align:center;font-weight:700;font-size:17px;
   padding:18px 12px;border:1px solid;letter-spacing:.02em;cursor:pointer;border-radius:3px;
@@ -341,4 +363,5 @@ body.phone .card-r{padding:14px}
 body.phone .knt-sub:empty{display:none}
 body.phone .card-l .attr:first-of-type{margin-top:10px}
 body.phone .card-r .chips{margin-bottom:0}
+body.phone .grp{margin:12px 0 0}
 body.phone .nav .b{flex:1 1 auto;font-size:12px;padding:9px 6px}

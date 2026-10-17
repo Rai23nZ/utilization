@@ -623,6 +623,61 @@ function blurInput() {
   if (el && document.activeElement === el) el.blur();
 }
 
+/* ------------------------------------------------------ однородный товар */
+/* Однородные позиции — те, чьё наименование начинается с одного и того же числа
+   (артикула): «114711-Y3 41 Кроссовки…» и «114711-Y3 42 Кроссовки…». Число берётся
+   целиком и должно быть не короче двух цифр — одиночная цифра в начале обычно
+   означает количество, а не артикул. Группа показывается, если в выборке есть
+   хотя бы ещё одна позиция с тем же артикулом. */
+
+var pick = Object.create(null);   // соседи текущей карточки, отмеченные галочкой: knt → true
+
+function skuOf(it) {
+  var m = /^\s*(\d{2,})/.exec(it.name || '');
+  return m ? m[1] : '';
+}
+
+/** Остальные позиции выборки с тем же артикулом, в порядке сортировки. */
+function groupOf(it) {
+  var sku = skuOf(it);
+  if (!sku) return [];
+  return S.items.filter(function (o) { return o !== it && skuOf(o) === sku; });
+}
+
+/** Выбранные галочкой соседи, которые ещё не утилизированы. */
+function pickedOf(it) {
+  return groupOf(it).filter(function (o) { return pick[o.knt] && !S.marks[o.knt]; });
+}
+
+/** Галочки стоят только рядом с кнопкой «УТИЛИЗИРОВАН». Если текущая позиция уже
+    отмечена, неотмеченные соседи превращаются в ссылки на свои карточки. */
+function renderGroup(it, marked) {
+  var others = groupOf(it);
+  $('c-group').hidden = !others.length;
+  if (!others.length) return;
+
+  var open = others.filter(function (o) { return !S.marks[o.knt]; });
+  var allPicked = open.length && open.every(function (o) { return pick[o.knt]; });
+  $('c-group-cnt').textContent = '· ' + skuOf(it) + ' · ещё ' + others.length;
+  $('btn-group-all').hidden = marked || !open.length;
+  $('btn-group-all').textContent = allPicked ? 'Снять выбор' : 'Выбрать все';
+
+  $('c-group-list').innerHTML = others.map(function (o) {
+    var head = '<b>' + esc(o.knt) + '</b><span>' + esc(o.name) + '</span>';
+    if (S.marks[o.knt]) {
+      return '<div class="grp-row done">' + head + '<em>утилизирован</em></div>';
+    }
+    if (marked) {
+      return '<button type="button" class="grp-row" data-idx="' + S.items.indexOf(o) + '">' +
+             head + '<em>открыть</em></button>';
+    }
+    var on = !!pick[o.knt];
+    return '<label class="grp-row' + (on ? ' on' : '') + '">' +
+           '<input type="checkbox" data-knt="' + esc(o.knt) + '"' + (on ? ' checked' : '') + '>' +
+           head + '</label>';
+  }).join('');
+}
+
 /* ------------------------------------------------------------- отрисовка */
 
 function markedCount() { return Object.keys(S.marks).length; }
@@ -732,20 +787,30 @@ function renderCard() {
     $('c-more').hidden = true;
   }
 
+  renderGroup(it, marked);
+
   var running = tState() === 'run';
+  var extra = marked ? 0 : pickedOf(it).length;
   $('btn-util').hidden = marked;
   $('btn-unutil').hidden = !marked;
   $('btn-util').disabled = !running;
-  $('util-hint').textContent = hintText(marked, running);
+  $('btn-util').textContent = extra ? 'УТИЛИЗИРОВАН × ' + (extra + 1) : 'УТИЛИЗИРОВАН';
+  $('util-hint').textContent = hintText(marked, running, extra);
 }
 
-/** На телефоне подсказка под кнопкой должна занимать одну строку. */
-function hintText(marked, running) {
+/** На телефоне подсказка под кнопкой должна занимать одну строку.
+    extra — сколько однородных позиций отмечено галочкой вдобавок к текущей. */
+function hintText(marked, running, extra) {
   if (marked) {
     return isPhone() ? 'Решение принято'
       : 'Решение по этой позиции уже принято. Снять отметку можно только через подтверждение.';
   }
-  if (running) return '';
+  if (running) {
+    if (!extra) return '';
+    return isPhone() ? 'Эта позиция и ещё ' + extra + ' из группы'
+      : 'Отметка встанет на эту позицию и ещё на ' +
+        plural(extra, 'позицию', 'позиции', 'позиций') + ' того же артикула.';
+  }
   if (tState() === 'idle') {
     return isPhone() ? 'Нажмите «Начать»'
       : 'Сначала нажмите «Начать» — без запущенного таймера отметка недоступна.';
@@ -816,6 +881,7 @@ function doFind(auto) {
 function openItem(idx) {
   if (idx < 0 || idx >= S.items.length) return;
   S.cursor = idx;
+  pick = Object.create(null);   // выбор однородных относится к одной карточке
   $('picker').hidden = true;
   findMsg('');
   save();
@@ -834,12 +900,19 @@ function markCurrent() {
   if (tState() !== 'run') { snack('Таймер не запущен', 'err'); return; }
   if (S.marks[it.knt]) { snack('Уже утилизирован', 'err'); return; }
 
+  // текущая позиция плюс однородные, выбранные галочкой; каждая — своей строкой журнала
+  var batch = [it].concat(pickedOf(it));
   var ts = Date.now();
-  S.marks[it.knt] = ts;
-  S.log.unshift({ ts: ts, knt: it.knt, name: it.name, type: 'mark' });
+  batch.forEach(function (o) {
+    S.marks[o.knt] = ts;
+    S.log.unshift({ ts: ts, knt: o.knt, name: o.name, type: 'mark' });
+  });
+  pick = Object.create(null);
   save();
   renderWork();
-  snack('Отмечено · ' + (it.name || it.knt).slice(0, 46), 'ok');
+  snack(batch.length > 1
+    ? 'Отмечено ' + plural(batch.length, 'позиция', 'позиции', 'позиций') + ' · артикул ' + skuOf(it)
+    : 'Отмечено · ' + (it.name || it.knt).slice(0, 46), 'ok');
 
   $('knt-input').value = '';
   focusInput();
@@ -1099,6 +1172,26 @@ function bind() {
 
   $('btn-util').addEventListener('click', markCurrent);
   $('btn-unutil').addEventListener('click', unmarkCurrent);
+
+  // однородный товар: галочки, «Выбрать все» и переход к неотмеченному соседу
+  $('c-group').addEventListener('change', function (e) {
+    var box = e.target.closest('input[data-knt]');
+    if (!box) return;
+    if (box.checked) pick[box.dataset.knt] = true;
+    else delete pick[box.dataset.knt];
+    renderCard();
+  });
+  $('c-group').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-idx]');
+    if (btn) openItem(parseInt(btn.dataset.idx, 10));
+  });
+  $('btn-group-all').addEventListener('click', function () {
+    var open = groupOf(S.items[S.cursor]).filter(function (o) { return !S.marks[o.knt]; });
+    var allPicked = open.every(function (o) { return pick[o.knt]; });
+    pick = Object.create(null);
+    if (!allPicked) open.forEach(function (o) { pick[o.knt] = true; });
+    renderCard();
+  });
   $('btn-prev').addEventListener('click', function () { step(-1); });
   $('btn-next').addEventListener('click', function () { step(1); });
   $('btn-next-todo').addEventListener('click', jumpToTodo);

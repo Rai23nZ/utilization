@@ -168,6 +168,14 @@
         <div class="card-r">
           <p class="prod-name" id="c-name"></p>
           <div class="chips" id="c-chips"></div>
+          <!-- однородный товар: остальные позиции, чьё наименование начинается с того же артикула -->
+          <div class="grp" id="c-group" hidden>
+            <div class="grp-h">
+              <div class="dl">Однородный товар <span class="cnt" id="c-group-cnt"></span></div>
+              <button type="button" class="b" id="btn-group-all">Выбрать все</button>
+            </div>
+            <div id="c-group-list"></div>
+          </div>
           <button class="big-btn big-ok" id="btn-util">УТИЛИЗИРОВАН</button>
           <button class="big-btn big-undo" id="btn-unutil" hidden>Снять отметку</button>
           <div class="hint" id="util-hint"></div>
