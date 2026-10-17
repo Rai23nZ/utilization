@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QHash>
 #include <QStringList>
 #include <stdio.h>
 
@@ -63,6 +64,13 @@ int main(int argc, char **argv)
         CHECK(fl.size() == 2 && fl.at(0).size() <= 27 && fl.at(1).size() <= 27, "имя файла — две строки по 27 знаков");
         CHECK(fl.join(QString()) == file, "имя файла переносится без потерь");
     }
+
+    // артикул однородного товара: число в начале наименования, от двух цифр, целиком
+    CHECK(Logic::skuOf(QString::fromUtf8("114711-Y3 41  Кроссовки мужские Festland")) == "114711", "артикул — число в начале наименования");
+    CHECK(Logic::skuOf(QString::fromUtf8("1147110 Ботинки зимние")) == "1147110", "артикул берётся целиком");
+    CHECK(Logic::skuOf(QString::fromUtf8("5 Носки серые")).isEmpty(), "одна цифра в начале — не артикул");
+    CHECK(Logic::skuOf(QString::fromUtf8("Перчатки рабочие")).isEmpty(), "без числа в начале — не артикул");
+    CHECK(Logic::skuOf(QString::fromUtf8("  2205 Шапка")) == "2205", "пробелы перед артикулом пропускаются");
 
     Spy spy;
     Controller *c = new Controller;
@@ -262,6 +270,123 @@ int main(int argc, char **argv)
     c->requestRestart();
     c->confirmed("restart");
     CHECK(c->screen() == "load" && !QFile::exists(sd + "/utilization/.session.json"), "начать заново стирает сессию");
+
+    // однородный товар: позиции с одним артикулом отмечаются разом, но только в шторке сетки
+    {
+        QFile gc(sd + "/Documents/group_check.csv");
+        gc.open(QIODevice::WriteOnly);
+        gc.write("№ КНТ;Наименование товара;Решение\n"
+                 "40000101;114711-Y3 41  Кроссовки мужские Festland;ДОПУЩЕН\n"
+                 "40000102;114711-Y3 42  Кроссовки мужские Festland;ДОПУЩЕН\n"
+                 "40000103;114711-Y3 43  Кроссовки мужские Festland;ДОПУЩЕН\n"
+                 "40000104;114711-Y3 44  Кроссовки мужские Festland;ДОПУЩЕН\n"
+                 "40000105;1147110 Ботинки зимние;ДОПУЩЕН\n"
+                 "40000106;5 Носки серые;ДОПУЩЕН\n"
+                 "40000107;5 Носки синие;ДОПУЩЕН\n"
+                 "40000108;Перчатки рабочие;ДОПУЩЕН\n"
+                 "40000109;Перчатки зимние;ДОПУЩЕН\n"
+                 "40000110;2205 Шапка красная;ДОПУЩЕН\n"
+                 "40000111;2205 Шапка синяя;ДОПУЩЕН\n");
+        gc.close();
+        // в акте нет 40000104 — выборка сужена, 44-й размер в группу не попадает
+        QFile ga(sd + "/Documents/group_act.csv");
+        ga.open(QIODevice::WriteOnly);
+        ga.write("№ КНТ\n40000101\n40000102\n40000103\n40000105\n40000106\n40000107\n40000108\n40000109\n40000110\n40000111\n");
+        ga.close();
+        c->loadFile("check", sd + "/Documents/group_check.csv");
+        pump();
+        c->loadFile("act", sd + "/Documents/group_act.csv");
+        pump();
+        CHECK(c->matchInfo().value("inWork").toInt() == 10, "однородные: к утилизации 10 позиций");
+        c->start();
+        QHash<QString, int> at;   // 4 последние цифры КНТ → индекс позиции
+        QVariantList tiles = c->gridSnapshot();
+        for (int i = 0; i < tiles.size(); ++i)
+            at.insert(s(tiles.at(i).toMap().value("sn")), tiles.at(i).toMap().value("idx").toInt());
+        c->openGrid();
+
+        c->gridOpen(at.value("0101"));
+        QVariantMap g = c->group();
+        QVariantList rows = g.value("rows").toList();
+        QStringList members;
+        for (int i = 0; i < rows.size(); ++i) members << s(rows.at(i).toMap().value("knt"));
+        printf("      группа %s: %s\n", s(g.value("sku")).toUtf8().constData(), members.join(" ").toUtf8().constData());
+        CHECK(g.value("has").toBool() && g.value("sku") == "114711", "у кроссовок есть группа по артикулу 114711");
+        CHECK(members == (QStringList() << "40000102" << "40000103"), "в группе только соседи из акта, без 1147110");
+        CHECK(g.value("canPick").toBool() && g.value("batch").toInt() == 1, "по умолчанию ничего не выбрано");
+        c->gridOpen(at.value("0105"));
+        CHECK(!c->group().value("has").toBool(), "1147110 — другой артикул, группы нет");
+        c->gridOpen(at.value("0106"));
+        CHECK(!c->group().value("has").toBool(), "«5 Носки»: одна цифра — группы нет");
+        c->gridOpen(at.value("0108"));
+        CHECK(!c->group().value("has").toBool(), "«Перчатки»: без числа — группы нет");
+
+        // выбор относится к одной карточке и к открытой шторке; таймер для него не нужен
+        c->gridOpen(at.value("0101"));
+        c->groupTap(at.value("0102"));
+        CHECK(c->group().value("batch").toInt() == 2, "галочка у соседа: отметка встанет на 2 позиции");
+        c->gridOpen(at.value("0102"));
+        c->gridOpen(at.value("0101"));
+        CHECK(c->group().value("batch").toInt() == 1, "смена карточки сбрасывает выбор");
+        c->groupTap(at.value("0102"));
+        c->sheetClose();
+        CHECK(c->group().value("batch").toInt() == 1, "закрытие шторки сбрасывает выбор");
+        c->gridOpen(at.value("0101"));
+        c->groupAll();
+        CHECK(c->group().value("batch").toInt() == 3 && c->group().value("allOn").toBool(), "«Выбрать все»");
+        c->groupAll();
+        CHECK(c->group().value("batch").toInt() == 1, "«Снять выбор»");
+
+        // «УТИЛИЗИРОВАН × 2»: одно время, но у каждой позиции своя отметка
+        c->timerToggle();
+        c->groupTap(at.value("0102"));
+        c->mark();
+        CHECK(c->doneCount() == 2, "отмечены текущая и выбранная");
+        CHECK(toasts.last().contains(QString::fromUtf8("артикул 114711")), "в сообщении — артикул");
+        QString markedAt = s(c->card().value("markedAt"));
+        g = c->group();
+        rows = g.value("rows").toList();
+        CHECK(g.value("batch").toInt() == 1 && !g.value("canPick").toBool(), "после отметки выбор сброшен, галочек нет");
+        CHECK(rows.at(0).toMap().value("mode") == "done" && rows.at(1).toMap().value("mode") == "open",
+              "у отмеченной: сосед-утилизированный и сосед-ссылка");
+
+        // у отмеченной позиции неотмеченный сосед открывается своей карточкой
+        c->groupTap(at.value("0103"));
+        CHECK(c->card().value("idx").toInt() == at.value("0103") && c->sheetOpen(), "сосед открыт в шторке");
+        CHECK(!c->group().value("canPick").toBool(), "у 43-го все соседи отмечены — выбирать нечего");
+        c->gridOpen(at.value("0102"));
+        CHECK(c->card().value("marked").toBool() && s(c->card().value("markedAt")) == markedAt, "соседу поставлено то же время");
+        c->gridOpen(at.value("0103"));
+        c->mark();
+        CHECK(c->doneCount() == 3, "без выбора отмечается одна позиция");
+
+        // снятие поштучное: журнал хранит отдельную строку на каждую позицию
+        c->gridOpen(at.value("0102"));
+        c->primary();
+        CHECK(lastConfirm == "unmark", "снятие требует подтверждения");
+        c->confirmed("unmark");
+        CHECK(c->doneCount() == 2, "снята отметка только с одной позиции");
+        if (!c->gridShowDone()) c->gridToggleDone();
+        QString st41, st42;
+        tiles = c->gridSnapshot();
+        for (int i = 0; i < tiles.size(); ++i) {
+            QVariantMap t = tiles.at(i).toMap();
+            if (t.value("sn") == "0101") st41 = s(t.value("st"));
+            if (t.value("sn") == "0102") st42 = s(t.value("st"));
+        }
+        CHECK(st41 == "done" && st42 == "undo", "41-й утилизирован, у 42-го снята отметка");
+
+        // на экране утилизации отметка всегда поштучная
+        c->gridOpen(at.value("0110"));
+        c->groupTap(at.value("0111"));
+        CHECK(c->group().value("batch").toInt() == 2, "шапки: выбрана соседняя");
+        c->closeGrid();
+        CHECK(c->screen() == "work" && c->group().value("batch").toInt() == 1, "выход из сетки сбрасывает выбор");
+        c->groupTap(at.value("0111"));
+        CHECK(c->group().value("batch").toInt() == 1, "вне шторки сетки галочки не ставятся");
+        c->mark();
+        CHECK(c->doneCount() == 3, "УТИЛИЗИРОВАН на экране утилизации отметил одну позицию");
+    }
     delete c;
 
     printf("FAILS: %d\n", fails);

@@ -1,13 +1,14 @@
 #!/bin/bash
 # ============================================================================
-#  Сборка .bar для BlackBerry 10 на Linux.
+#  Сборка .bar для BlackBerry 10 на Linux или на Windows (Git Bash).
 #
 #  Нужны: BlackBerry 10 Native SDK 10.3.1 (архив: archive.org/details/bbdevtools —
-#  bbndk.win32.tools.10.3.1.12.zip и bbndk.win32.libraries.10.3.1.995.zip),
-#  Wine с 32-битной частью (компилятор qcc и moc — программы для Windows) и Java.
+#  bbndk.win32.tools.10.3.1.12.zip и bbndk.win32.libraries.10.3.1.995.zip).
+#  На Linux ещё Wine с 32-битной частью (компилятор qcc и moc — программы для Windows)
+#  и Java 17+; на Windows всё берётся из NDK (по умолчанию C:/bbndk, Java — из momentics).
 #
 #  BBNDK=/путь/к/распакованному/sdk ./build.sh        → dist/UtilizationKNT-<версия>.bar
-#  ./build.sh host-test                                 → тесты ядра на хосте (Qt5 + zlib)
+#  ./build.sh host-test                                 → тесты ядра на хосте Linux (Qt5 + zlib)
 # ============================================================================
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -34,19 +35,33 @@ if [ "${1:-}" = "host-test" ]; then
     exit 0
 fi
 
-BBNDK="${BBNDK:-/home/user/bbsdk}"
+# На Windows (Git Bash) программы NDK запускаются напрямую, на Linux — через Wine
+case "$(uname -s)" in
+    MINGW*|MSYS*) WIN=1 ;;
+    *) WIN= ;;
+esac
+if [ -n "$WIN" ]; then
+    BBNDK="${BBNDK:-C:/bbndk}"
+    RUN=""
+    winpath() { cygpath -w "$1"; }
+    export PYTHONUTF8=1
+else
+    BBNDK="${BBNDK:-/home/user/bbsdk}"
+    RUN="wine"
+    winpath() { echo "Z:$1" | tr '/' '\\'; }
+    export WINEDEBUG=-all
+    export WINEPREFIX="${WINEPREFIX:-$HOME/.wine-bb}"
+fi
 HOST="$BBNDK/host_10_3_1_12/win32/x86"
 TARGET="$BBNDK/target_10_3_1_995/qnx6"
 [ -d "$HOST" ] && [ -d "$TARGET" ] || { echo "Не найден BlackBerry 10 NDK в $BBNDK"; exit 1; }
 
-winpath() { echo "Z:$1" | tr '/' '\\'; }
-export WINEDEBUG=-all
-export WINEPREFIX="${WINEPREFIX:-$HOME/.wine-bb}"
 export QNX_HOST="$(winpath "$HOST")"
 export QNX_TARGET="$(winpath "$TARGET")"
-export WINEPATH="$(winpath "$HOST/usr/bin")"
-QCC="wine $HOST/usr/bin/qcc.exe"
-MOC="wine $HOST/usr/bin/moc.exe"
+[ -n "$WIN" ] || export WINEPATH="$(winpath "$HOST/usr/bin")"
+export BB_IMPORTS="${BB_IMPORTS:-$TARGET/armle-v7/usr/lib/qt4/imports}"
+QCC="$RUN $HOST/usr/bin/qcc.exe"
+MOC="$RUN $HOST/usr/bin/moc.exe"
 
 python3 tools/check_qml.py
 
@@ -76,11 +91,17 @@ $QCC -Vgcc_ntoarmv7le -lang-c++ -Wl,-z,relro \
     -lbbcascades -lbb -lbbdata -lbbsystem -lbbdevice \
     -lQtDeclarative -lQtScript -lQtSvg -lQtSql -lQtXmlPatterns -lQtXml -lQtGui -lQtNetwork -lQtCore \
     -lbps -lz -lm
-wine $HOST/usr/bin/ntoarmv7-strip.exe $OUT/UtilizationKNT 2>/dev/null || true
+$RUN $HOST/usr/bin/ntoarmv7-strip.exe $OUT/UtilizationKNT 2>/dev/null || true
 file $OUT/UtilizationKNT || true
 
 echo "== bar"
 BAR="dist/UtilizationKNT-$VERSION.bar"
 rm -f "$BAR"
-bash tools/bbpkg.sh -package "$BAR" -devMode bar-descriptor.xml
+if [ -n "$WIN" ]; then
+    # упаковщик из NDK со своей Java 7: флаги для Java 17 из tools/bbpkg.sh ему не нужны
+    JRE="$(cygpath -u "$(ls -d "$BBNDK"/momentics/features/com.qnx.tools.jre.*/jre/bin | head -1)")"
+    PATH="$JRE:$PATH" cmd //c "$(winpath "$HOST/usr/bin/blackberry-nativepackager.bat")" -package "$BAR" -devMode bar-descriptor.xml
+else
+    bash tools/bbpkg.sh -package "$BAR" -devMode bar-descriptor.xml
+fi
 ls -la "$BAR"

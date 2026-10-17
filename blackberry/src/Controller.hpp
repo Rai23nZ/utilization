@@ -10,6 +10,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QSet>
 #include <QTimer>
 #include <QVariant>
 
@@ -60,6 +61,8 @@ class Controller : public QObject {
     Q_PROPERTY(bool gridShowDone READ gridShowDone NOTIFY gridChanged)
     Q_PROPERTY(bool sheetOpen READ sheetOpen NOTIFY gridChanged)
     Q_PROPERTY(int gridCount READ gridCount NOTIFY gridChanged)
+    // однородный товар — только в шторке сетки
+    Q_PROPERTY(QVariantMap group READ group NOTIFY workChanged)
 #ifdef Q_OS_BLACKBERRY
     Q_PROPERTY(bb::cascades::DataModel *gridModel READ gridModel CONSTANT)
 #endif
@@ -105,6 +108,7 @@ public:
     bool gridShowDone() const { return m_gridShowDone; }
     bool sheetOpen() const { return m_sheetOpen; }
     int gridCount() const { return m_gridRows.size(); }
+    QVariantMap group() const;
 #ifdef Q_OS_BLACKBERRY
     bb::cascades::DataModel *gridModel() const { return m_gridModel; }
 #endif
@@ -151,6 +155,8 @@ public slots:
     void gridToggleDone();
     void gridOpen(int itemIndex);
     void sheetClose();
+    void groupTap(int itemIndex);   // галочка у соседа или, если текущая отмечена, его карточка
+    void groupAll();                // «Выбрать все» / «Снять выбор»
 
     // итог
     void exportXlsx();
@@ -221,6 +227,8 @@ private:
     void rebuildGrid();
     void refreshGridItem(int itemIdx);
     QVariantMap gridEntry(int itemIdx) const;
+    bool groupActive() const;
+    QList<int> pickedOf(int itemIdx) const;
 
     QString doneAsText() const;
     QString restText() const;
@@ -266,6 +274,7 @@ private:
     bool m_gridShowDone, m_sheetOpen;
     int m_sheetSeq, m_closeSeq;
     QList<int> m_gridRows;
+    QSet<QString> m_groupPick;      // соседи текущей карточки, отмеченные галочкой (КНТ); не сохраняется
 #ifdef Q_OS_BLACKBERRY
     bb::cascades::ArrayDataModel *m_gridModel;
 #endif
