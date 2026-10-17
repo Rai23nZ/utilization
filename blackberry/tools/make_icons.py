@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Иконки интерфейса (белые на прозрачном — окрашиваются в QML через filterColor)
-и значок приложения. Рисуются в 4-кратном размере и уменьшаются для сглаживания."""
+и значок приложения. Иконки рисуются в 4-кратном размере и уменьшаются для сглаживания,
+значок вырезается из картинки art/icon-source.png."""
 import os
 import sys
 
@@ -8,6 +9,7 @@ from PIL import Image, ImageDraw
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 IMG = os.path.join(ROOT, "assets", "images")
+ICON_SRC = os.path.join(ROOT, "art", "icon-source.png")
 os.makedirs(IMG, exist_ok=True)
 
 S = 96          # итоговый размер иконки
@@ -165,30 +167,25 @@ for name, fn in icons.items():
     save(im, name + ".png")
 
 
-def app_icon(size, name):
-    """Значок: клавиатура-«пульт» 3×3, правый нижний блок — янтарный с галочкой."""
-    n = 512
-    im = Image.new("RGBA", (n, n), (10, 11, 10, 255))
-    d = ImageDraw.Draw(im)
-    pad, gap = 70, 22
-    cell = (n - 2 * pad - 2 * gap) / 3
-    amber = (255, 176, 0, 255)
-    for i in range(3):
-        for j in range(3):
-            if i >= 1 and j >= 1:
-                continue
-            x, y = pad + i * (cell + gap), pad + j * (cell + gap)
-            d.rectangle([x, y, x + cell, y + cell], fill=(34, 37, 33, 255), outline=(70, 74, 68, 255), width=4)
-    x0, y0 = pad + cell + gap, pad + cell + gap
-    x1, y1 = n - pad, n - pad
-    d.rectangle([x0, y0, x1, y1], fill=amber)
-    cx, cy, s = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2
-    d.line([(cx - s * 0.52, cy + s * 0.02), (cx - s * 0.14, cy + s * 0.40), (cx + s * 0.55, cy - s * 0.38)],
-           fill=(10, 11, 10, 255), width=34, joint="curve")
-    im.resize((size, size), Image.LANCZOS).save(os.path.join(ROOT, name))
+# Значок «Item Disposal»: металлическая плитка с урной из art/icon-source.png (1024×1024).
+# Плитка вместе с нижним скосом занимает TILE; подпись под ней и тень в значок не входят.
+# Углы плитки скруглены радиусом RADIUS — всё снаружи скругления становится прозрачным.
+TILE = (213, 184, 811, 810)
+RADIUS = 130
 
 
-app_icon(144, "icon_144.png")
-app_icon(110, "icon_110.png")
-app_icon(96, "icon_96.png")
+def app_icon():
+    src = Image.open(ICON_SRC).convert("RGBA").crop(TILE)
+    w, h = src.size
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius=RADIUS, fill=255)
+    src.putalpha(mask)
+    side = max(w, h)
+    square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    square.paste(src, ((side - w) // 2, (side - h) // 2))
+    for size in (144, 110, 96):
+        square.resize((size, size), Image.LANCZOS).save(os.path.join(ROOT, "icon_%d.png" % size))
+
+
+app_icon()
 print("icons:", len(icons), "->", IMG)

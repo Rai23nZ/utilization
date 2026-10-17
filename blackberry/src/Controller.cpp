@@ -434,6 +434,7 @@ void Controller::resetSession()
     m_detailsOpen = false;
     m_sheetOpen = false;
     m_gridRows.clear();
+    m_groupPick.clear();
     m_exportNote.clear();
     m_colCode = m_colBrand = m_colPrice = -1;
 }
@@ -849,6 +850,7 @@ void Controller::openItem(int idx, bool fromGrid)
     m_cursor = idx;
     m_find.clear();
     m_picks.clear();
+    m_groupPick.clear();   // выбор однородных относится к одной карточке
     m_detailsOpen = false;
     saveState();
     refreshGridItem(old);
@@ -972,19 +974,28 @@ void Controller::mark()
     if (m_timer.state != QS("run")) { Platform::vibrate(150); emit toast(QS("Таймер не запущен")); return; }
     if (m_marks.contains(it.knt)) { emit toast(QS("Уже утилизирован")); return; }
 
+    // текущая позиция плюс однородные, выбранные галочкой в сетке; каждая — своей строкой журнала
+    QList<int> batch;
+    batch << m_cursor << pickedOf(m_cursor);
     qint64 ts = now();
-    m_marks.insert(it.knt, ts);
-    LogEntry e;
-    e.ts = ts; e.knt = it.knt; e.name = it.name; e.type = QS("mark");
-    m_log.prepend(e);
+    for (int i = 0; i < batch.size(); ++i) {
+        const Item &o = m_items.at(batch.at(i));
+        m_marks.insert(o.knt, ts);
+        LogEntry e;
+        e.ts = ts; e.knt = o.knt; e.name = o.name; e.type = QS("mark");
+        m_log.prepend(e);
+    }
+    m_groupPick.clear();
     saveState();
     m_typed.clear();
     m_fresh = false;
     m_find.clear();
     Platform::vibrate(60);
     if (m_marks.size() == m_items.size()) emit toast(QS("Весь товар из акта утилизирован — можно завершать"));
+    else if (batch.size() > 1)
+        emit toast(QS("Отмечено ") + plural(batch.size(), "позиция", "позиции", "позиций") + QS(" · артикул ") + skuOf(it.name));
     else emit toast(QS("Отмечено · ") + (it.name.isEmpty() ? it.knt : it.name.left(46)));
-    refreshGridItem(m_cursor);
+    for (int i = 0; i < batch.size(); ++i) refreshGridItem(batch.at(i));
     if (m_screen == QS("grid") && m_sheetOpen) {
         // в сетке шторка сама закрывается, чтобы сразу брать следующую плитку
         m_closeSeq = m_sheetSeq;
@@ -1140,6 +1151,7 @@ void Controller::openGrid()
     if (!m_active) return;
     m_sheetOpen = false;
     m_detailsOpen = false;
+    m_groupPick.clear();
     rebuildGrid();
     setScreen(QS("grid"));
 }
@@ -1147,6 +1159,7 @@ void Controller::openGrid()
 void Controller::closeGrid()
 {
     m_sheetOpen = false;
+    m_groupPick.clear();   // на экране утилизации отметка всегда поштучная
     emit gridChanged();
     emit workChanged();
     setScreen(QS("work"));
@@ -1177,7 +1190,94 @@ void Controller::autoCloseSheet()
 void Controller::sheetClose()
 {
     m_sheetOpen = false;
+    m_groupPick.clear();
     emit gridChanged();
+    emit workChanged();
+}
+
+/* ------------------------------------------------------- однородный товар */
+/* Позиции однородны, если наименование начинается с одного и того же артикула
+   (Logic::skuOf). Блок есть только в шторке сетки: галочки ничего не выбирают по
+   умолчанию, «УТИЛИЗИРОВАН × N» отмечает текущую и выбранных соседей одним временем.
+   Если текущая уже отмечена, галочек нет — неотмеченные соседи открывают свою карточку. */
+
+bool Controller::groupActive() const
+{
+    return m_active && m_screen == QS("grid") && m_sheetOpen && m_cursor >= 0 && m_cursor < m_items.size();
+}
+
+/** Выбранные галочкой соседи, которые ещё не утилизированы. */
+QList<int> Controller::pickedOf(int itemIdx) const
+{
+    QList<int> out;
+    QList<int> others = groupOf(m_items, itemIdx);
+    for (int i = 0; i < others.size(); ++i) {
+        const QString &knt = m_items.at(others.at(i)).knt;
+        if (m_groupPick.contains(knt) && !m_marks.contains(knt)) out << others.at(i);
+    }
+    return out;
+}
+
+QVariantMap Controller::group() const
+{
+    QVariantMap m;
+    QList<int> others = m_active ? groupOf(m_items, m_cursor) : QList<int>();
+    m.insert(QS("has"), !others.isEmpty());
+    m.insert(QS("batch"), 1);
+    if (others.isEmpty()) return m;
+
+    bool marked = m_marks.contains(m_items.at(m_cursor).knt);
+    QVariantList rows;
+    int open = 0, on = 0;
+    for (int i = 0; i < others.size(); ++i) {
+        const Item &o = m_items.at(others.at(i));
+        bool done = m_marks.contains(o.knt);
+        bool picked = !done && !marked && m_groupPick.contains(o.knt);
+        if (!done) ++open;
+        if (picked) ++on;
+        QVariantMap r;
+        r.insert(QS("idx"), others.at(i));
+        r.insert(QS("knt"), o.knt);
+        r.insert(QS("name"), o.name);
+        r.insert(QS("mode"), done ? QS("done") : (marked ? QS("open") : QS("check")));
+        r.insert(QS("on"), picked);
+        rows << r;
+    }
+    m.insert(QS("sku"), skuOf(m_items.at(m_cursor).name));
+    m.insert(QS("count"), others.size());
+    m.insert(QS("canPick"), !marked && open > 0);
+    m.insert(QS("allOn"), open > 0 && on == open);
+    m.insert(QS("batch"), 1 + on);
+    m.insert(QS("rows"), rows);
+    return m;
+}
+
+void Controller::groupTap(int itemIndex)
+{
+    if (!groupActive() || !groupOf(m_items, m_cursor).contains(itemIndex)) return;
+    const QString &knt = m_items.at(itemIndex).knt;
+    if (m_marks.contains(knt)) return;
+    if (m_marks.contains(m_items.at(m_cursor).knt)) { gridOpen(itemIndex); return; }
+    if (m_groupPick.contains(knt)) m_groupPick.remove(knt);
+    else m_groupPick.insert(knt);
+    emit workChanged();
+}
+
+void Controller::groupAll()
+{
+    if (!groupActive() || m_marks.contains(m_items.at(m_cursor).knt)) return;
+    QList<int> others = groupOf(m_items, m_cursor);
+    QStringList open;
+    bool allOn = true;
+    for (int i = 0; i < others.size(); ++i) {
+        const QString &knt = m_items.at(others.at(i)).knt;
+        if (m_marks.contains(knt)) continue;
+        open << knt;
+        if (!m_groupPick.contains(knt)) allOn = false;
+    }
+    m_groupPick.clear();
+    if (!allOn) for (int i = 0; i < open.size(); ++i) m_groupPick.insert(open.at(i));
+    emit workChanged();
 }
 
 /* -------------------------------------------------------------------- итог */

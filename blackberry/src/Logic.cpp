@@ -228,6 +228,28 @@ QList<int> candidates(const QList<Item> &items, const QString &query)
     return out;
 }
 
+/* Число берётся целиком (114711 ≠ 1147110). Одиночная цифра в начале обычно означает
+   количество, а не артикул, поэтому нужно хотя бы две. Цифры только ASCII, как \d в app.js. */
+QString skuOf(const QString &name)
+{
+    int i = 0;
+    while (i < name.size() && name.at(i).isSpace()) ++i;
+    int start = i;
+    while (i < name.size() && name.at(i).unicode() >= '0' && name.at(i).unicode() <= '9') ++i;
+    return i - start >= 2 ? name.mid(start, i - start) : QString();
+}
+
+QList<int> groupOf(const QList<Item> &items, int idx)
+{
+    QList<int> out;
+    if (idx < 0 || idx >= items.size()) return out;
+    QString sku = skuOf(items.at(idx).name);
+    if (sku.isEmpty()) return out;
+    for (int i = 0; i < items.size(); ++i)
+        if (i != idx && skuOf(items.at(i).name) == sku) out << i;
+    return out;
+}
+
 static double advance(ushort code, bool mono)
 {
     if (mono) return 600;

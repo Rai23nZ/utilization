@@ -60,6 +60,12 @@ int ruCompare(const QString &a, const QString &b);
 /* Позиции, подходящие под введённые цифры. */
 QList<int> candidates(const QList<Item> &items, const QString &query);
 
+/* Однородный товар: артикул — число в начале наименования, не короче двух цифр
+   («114711-Y3 41 Кроссовки…» → «114711»). Без такого числа — пустая строка. */
+QString skuOf(const QString &name);
+/* Остальные позиции с тем же артикулом, в порядке списка. */
+QList<int> groupOf(const QList<Item> &items, int idx);
+
 /* Индексы столбцов по нормализованным заголовкам. */
 int columnOf(const QStringList &headers, const QStringList &aliases);
 

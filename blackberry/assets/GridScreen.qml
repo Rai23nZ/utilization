@@ -2,11 +2,13 @@ import bb.cascades 1.4
 
 // Экран «Сетка»: вся выборка плитками по 4 последним цифрам, в порядке наименований.
 // Утилизированные залиты синим и по умолчанию скрыты. Касание плитки открывает шторку
-// с карточкой: здесь можно и отметить утилизацию, и снять отметку.
+// с карточкой: здесь можно и отметить утилизацию, и снять отметку. Если у позиции есть
+// однородные (тот же артикул в начале наименования), шторка выше и показывает их список.
 Container {
     id: grid
     property variant c: app.card
     property variant s: app.status
+    property variant g: app.group
     property variant tags: grid.c.tags ? grid.c.tags : []
     property string st: app.timerState
 
@@ -22,6 +24,21 @@ Container {
         if (kind == "err") return T.red;
         return T.ink2;
     }
+    function refreshGroup() {
+        groupModel.clear();
+        var rows = app.group.rows;
+        if (!rows) return;
+        for (var i = 0; i < rows.length; i++) groupModel.append(rows[i]);
+    }
+    onCreationCompleted: {
+        grid.refreshGroup();
+        app.workChanged.connect(grid.refreshGroup);
+    }
+    attachedObjects: [
+        ArrayDataModel {
+            id: groupModel
+        }
+    ]
 
     Container {
         horizontalAlignment: HorizontalAlignment.Fill
@@ -264,8 +281,8 @@ Container {
         id: sheet
         horizontalAlignment: HorizontalAlignment.Fill
         verticalAlignment: VerticalAlignment.Bottom
-        preferredHeight: ui.du(60)
-        translationY: app.sheetOpen ? 0 : ui.du(64)
+        preferredHeight: grid.g.has ? ui.du(100) : ui.du(60)
+        translationY: app.sheetOpen ? 0 : (grid.g.has ? ui.du(104) : ui.du(64))
         background: Color.create(T.amber)
         topPadding: 3
         Container {
@@ -351,7 +368,109 @@ Container {
                 tint: grid.statusTint(grid.s.kind)
                 size: 5.5
             }
+            // однородный товар: галочки у неотмеченных соседей; если текущая уже
+            // отмечена — неотмеченные соседи открывают свою карточку
             Container {
+                visible: grid.g.has == true
+                topMargin: ui.du(1.5)
+                horizontalAlignment: HorizontalAlignment.Fill
+                layoutProperties: StackLayoutProperties {
+                    spaceQuota: 1
+                }
+                layout: StackLayout {
+                }
+                Container {
+                    horizontalAlignment: HorizontalAlignment.Fill
+                    preferredHeight: 2
+                    background: Color.create(T.line)
+                }
+                Container {
+                    topMargin: ui.du(1)
+                    horizontalAlignment: HorizontalAlignment.Fill
+                    layout: StackLayout {
+                        orientation: LayoutOrientation.LeftToRight
+                    }
+                    Mono {
+                        verticalAlignment: VerticalAlignment.Center
+                        layoutProperties: StackLayoutProperties {
+                            spaceQuota: 1
+                        }
+                        text: grid.g.has ? "ОДНОРОДНЫЙ ТОВАР · " + grid.g.sku + " · ЕЩЁ " + grid.g.count : ""
+                        tint: T.amber
+                        size: 5.5
+                    }
+                    Key {
+                        visible: grid.g.canPick == true
+                        preferredWidth: ui.du(26)
+                        preferredHeight: ui.du(8)
+                        kind: "fn"
+                        label: grid.g.allOn ? "СНЯТЬ ВЫБОР" : "ВЫБРАТЬ ВСЕ"
+                        labelSize: 5.5
+                        onClicked: app.groupAll()
+                    }
+                }
+                ListView {
+                    topMargin: ui.du(0.5)
+                    horizontalAlignment: HorizontalAlignment.Fill
+                    layoutProperties: StackLayoutProperties {
+                        spaceQuota: 1
+                    }
+                    dataModel: groupModel
+                    onTriggered: {
+                        var d = groupModel.data(indexPath);
+                        app.groupTap(d.idx);
+                    }
+                    listItemComponents: [
+                        ListItemComponent {
+                            type: ""
+                            Container {
+                                horizontalAlignment: HorizontalAlignment.Fill
+                                background: Color.create(ListItemData.on ? "#231d0c" : "#111311")
+                                leftPadding: 10
+                                rightPadding: 10
+                                topPadding: 12
+                                bottomPadding: 12
+                                layout: StackLayout {
+                                    orientation: LayoutOrientation.LeftToRight
+                                }
+                                ImageView {
+                                    verticalAlignment: VerticalAlignment.Center
+                                    imageSource: ListItemData.mode == "open" ? "asset:///images/arrow_right.png" : (ListItemData.mode == "done" || ListItemData.on ? "asset:///images/check.png" : "asset:///images/frame.png")
+                                    filterColor: Color.create(ListItemData.mode == "done" ? "#5bd68a" : (ListItemData.mode == "open" || ListItemData.on ? "#ffb000" : "#9a978c"))
+                                    preferredWidth: 44
+                                    preferredHeight: 44
+                                }
+                                MonoB {
+                                    verticalAlignment: VerticalAlignment.Center
+                                    leftMargin: 24
+                                    text: ListItemData.knt
+                                    tint: ListItemData.mode == "done" ? "#5bd68a" : (ListItemData.on ? "#ffb000" : "#e8e4d8")
+                                    size: 6.5
+                                }
+                                Sans {
+                                    verticalAlignment: VerticalAlignment.Center
+                                    leftMargin: 24
+                                    layoutProperties: StackLayoutProperties {
+                                        spaceQuota: 1
+                                    }
+                                    text: ListItemData.name
+                                    tint: ListItemData.mode == "done" ? "#6b675d" : "#9a978c"
+                                    size: 6
+                                }
+                                Mono {
+                                    verticalAlignment: VerticalAlignment.Center
+                                    leftMargin: 16
+                                    text: ListItemData.mode == "done" ? "✓ УТИЛ." : (ListItemData.mode == "open" ? "ОТКРЫТЬ" : "")
+                                    tint: ListItemData.mode == "done" ? "#5bd68a" : "#ffb000"
+                                    size: 5.5
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+            Container {
+                visible: grid.g.has != true
                 layoutProperties: StackLayoutProperties {
                     spaceQuota: 1
                 }
@@ -381,7 +500,7 @@ Container {
                     }
                     kind: grid.c.action == "unmark" ? "danger" : "primary"
                     icon: grid.c.action == "unmark" ? "close" : "check"
-                    label: grid.c.action == "unmark" ? "СНЯТЬ ОТМЕТКУ" : "УТИЛИЗИРОВАН"
+                    label: grid.c.action == "unmark" ? "СНЯТЬ ОТМЕТКУ" : (grid.g.batch > 1 ? "УТИЛИЗИРОВАН × " + grid.g.batch : "УТИЛИЗИРОВАН")
                     labelSize: 7.5
                     active: grid.c.has == true
                     onClicked: app.primary()
